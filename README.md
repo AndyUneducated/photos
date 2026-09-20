@@ -29,60 +29,56 @@ git config --global user.name  "你的名字"
 git config --global user.email "你的邮箱@example.com"
 ```
 
-### 2. 创建 GitHub 仓库
+### 2. 创建 GitHub 仓库（已完成）
 
-`gh` 的令牌已经过期了，先刷新：
-
-```powershell
-gh auth refresh -h github.com
-```
-
-然后在项目目录里：
-
-```powershell
-cd C:\Users\yuxiz\AaaProjects\photos
-git add -A
-git commit -m "init"
-gh repo create photos --public --source=. --remote=origin --push
-```
+仓库是 <https://github.com/AndyUneducated/photos>，`main` 和 `gallery` 两个分支都已推送。
 
 **仓库必须是公开的。** GitHub 的免费账户在私有仓库上不能开 Pages，这是硬限制。这也意味着照片文件
 本身是公开可下载的 —— 详见下面的「隐私边界」。
 
-### 3. 打开 GitHub Pages
+git 身份只配在这个仓库里（`git config --local`），全局身份保持为空，所以共用这台电脑的人在别的
+仓库里提交会被 git 直接拒绝，不会误用你的名字。但要知道 `gh` 的登录令牌存在 Windows 账户的凭据库
+里，**不区分目录**：同一个 Windows 登录名在任何路径下都能用它推送。想真正隔离只能分开 Windows 账户。
 
-仓库页面 → **Settings → Pages** → **Build and deployment** → Source 选 **GitHub Actions**。
+### 3. 打开 GitHub Pages（已完成）
 
-不要选 "Deploy from a branch"，本项目用 Actions 从 `main` 和 `gallery` 两个分支合并构建。
+Source 已设为 **GitHub Actions**，不是 "Deploy from a branch" —— 本项目要从 `main` 和 `gallery`
+两个分支合并构建，分支模式做不到。
 
-### 4. 在 Squarespace 配置 DNS
+### 4. 配置 DNS —— 只剩这一步
 
-Squarespace → **Settings → Domains → anning.org → DNS**，添加一条记录：
+`anning.org` 的 DNS 托管在 `ns-cloud-d1`～`d4.googledomains.com`，也就是 Squarespace 收购
+Google Domains 后沿用的那套服务。入口在 Squarespace 的域名面板：**Domains → anning.org → DNS**。
+
+添加一条记录：
 
 | 字段 | 填什么 |
 | --- | --- |
 | Type | `CNAME` |
 | Host / Name | `photos` |
 | Value / Target | `andyuneducated.github.io` |
-| TTL | 1 hour |
+| TTL | 默认即可 |
 
-两个容易踩的坑：
+容易踩的坑：
 
-- Host 只填 `photos`，不要填 `photos.anning.org`，Squarespace 会自动补上域名后缀。
-- Value 只填 `andyuneducated.github.io`，**不要带仓库名**。
-- Squarespace 给新域名会自动添加默认的 A 记录和占位记录。如果 DNS 列表里有指向 Squarespace 自己
-  的 `photos` 相关记录，先删掉，否则会和这条 CNAME 冲突，GitHub 会报 `InvalidCNAMEError`。
+- Host 只填 `photos`，不要填 `photos.anning.org`，面板会自动补域名后缀。
+- Value 只填 `andyuneducated.github.io`，**不要带仓库名**，也不要写 `github.com`。
+- 如果面板要求目标以点结尾，就填 `andyuneducated.github.io.`。
+- 根域名目前没有任何 A 记录，所以不存在冲突。但若 `photos` 这个子域名上还有别的记录（例如
+  Squarespace 的转发占位），CNAME 会失效，GitHub 会报 `InvalidCNAMEError`。
 
-### 5. 在 GitHub 绑定域名
+### 5. 绑定域名（还差最后一勾）
 
-仓库 → **Settings → Pages → Custom domain** 填 `photos.anning.org`，保存。等 DNS 生效（通常几分钟，
-偶尔要几小时），页面上出现绿色对勾之后再勾上 **Enforce HTTPS**。
+自定义域名已经设成 `photos.anning.org`，GitHub 现在已经把 `andyuneducated.github.io/photos/`
+301 跳转到它了。
 
-证书签发前访问会有证书警告，这是正常的，等一会儿就好。
+DNS 生效后（通常几分钟，偶尔几小时）还要手动补一步：仓库 → **Settings → Pages**，等证书签发、
+出现绿色对勾，再勾上 **Enforce HTTPS**。证书签发前访问会有证书警告，属正常现象。
 
-### 6. 设置访问口令
+### 6. 设置访问口令（已完成）
 
-工作台 → 右上角「管理」→「站点设置」→ 填「访问口令」→ 保存。下次发布时生效。
+口令是 `maple-lantern-28`，仓库里只存 SHA-256，不存明文。要换的话：工作台 → 右上角「管理」→
+「站点设置」→ 填「访问口令」→ 保存，下次发布时生效。
 
 ## 隐私边界（请务必读一遍）
 
