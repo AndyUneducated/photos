@@ -587,8 +587,18 @@ server.listen(PORT, '127.0.0.1', async () => {
 
   if (process.env.PHOTOS_NO_OPEN !== '1') {
     const { spawn } = await import('node:child_process');
-    // `start` is a cmd builtin, so it needs a shell; the empty title argument is required because
-    // `start` treats a single quoted argument as the window title.
-    spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    // Open the studio in the default browser. Windows needs `cmd /c start` (empty title arg
+    // required); macOS/Linux use the platform open helpers.
+    const opener =
+      process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
+      : process.platform === 'darwin' ? ['open', [url]]
+      : ['xdg-open', [url]];
+    const child = spawn(opener[0], opener[1], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.on('error', () => {});
+    child.unref();
   }
 });
