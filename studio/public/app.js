@@ -608,10 +608,23 @@ async function saveSettings() {
 
   $('save-settings-btn').disabled = true;
   try {
-    await api('/api/settings', { method: 'POST', body: JSON.stringify(body) });
+    const r = await api('/api/settings', { method: 'POST', body: JSON.stringify(body) });
+    const changedPasscode = Boolean(body.passcode);
     $('set-passcode').value = '';
     await refresh();
-    banner('设置已保存。下次发布时网站会应用新设置。', 'ok');
+
+    if (!r.git?.changed) {
+      banner('设置没有变化。', 'ok');
+    } else {
+      // Everyone's saved unlock is the old hash, so changing the passcode signs all of them out.
+      const note = changedPasscode ? '家人下次打开需要重新输入口令。' : '';
+      banner(
+        r.git.pushed
+          ? `设置已推送，一两分钟后网站生效。${note}`
+          : `设置已提交，但没有远程仓库可推送，下次发布时一起上传。${note}`,
+        'ok',
+      );
+    }
   } catch (err) {
     banner(`保存失败：${err.message}`, 'error');
   }

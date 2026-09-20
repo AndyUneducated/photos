@@ -55,12 +55,32 @@ export async function loadManifest(config) {
 }
 
 export async function saveManifest(manifest) {
-  manifest.updatedAt = new Date().toISOString();
   manifest.usedBytes = manifest.photos.reduce((sum, p) => sum + (p.bytes || 0), 0);
   sortManifest(manifest);
+
+  // Compare against what is already on disk with updatedAt held at its old value. Bumping the
+  // stamp unconditionally would make every save byte-different, so publishGallery's tree check
+  // could never see a no-op and saving unchanged settings would commit, push and rebuild the site.
+  const previous = await readFile(MANIFEST_PATH, 'utf8').catch(() => null);
+  const oldStamp = previousStamp(previous);
+  if (oldStamp) {
+    manifest.updatedAt = oldStamp;
+    if (`${JSON.stringify(manifest, null, 2)}\n` === previous) return manifest;
+  }
+
+  manifest.updatedAt = new Date().toISOString();
   await mkdir(dirname(MANIFEST_PATH), { recursive: true });
   await writeFile(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifest;
+}
+
+function previousStamp(text) {
+  if (text === null) return null;
+  try {
+    return JSON.parse(text).updatedAt || null;
+  } catch {
+    return null;
+  }
 }
 
 function sortManifest(manifest) {

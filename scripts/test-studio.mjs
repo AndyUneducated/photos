@@ -6,7 +6,8 @@
  */
 
 import { spawn } from 'node:child_process';
-import { readFile, readdir, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -127,6 +128,39 @@ try {
   check('删除相册', deleted.removed === 1, JSON.stringify(deleted).slice(0, 200));
   check('删除后回到原始占用', deleted.budget.usedBytes === usedBefore);
   check('相册目录已删除', !(await exists(join(ROOT, 'gallery', 'albums', albumId))));
+
+  // ---------------------------------------------------------------- settings publish
+  // A passcode change is worthless if it only lands in the working tree: the site rebuilds on
+  // push, so saving settings has to commit too. Restores the original config.json afterwards.
+  const configPath = join(ROOT, 'config.json');
+  const configBefore = await readFile(configPath, 'utf8');
+  try {
+    const probe = 'test-passcode-' + Date.now();
+    const saved = await post('/api/settings', { passcode: probe, push: false });
+    check('保存设置产生了提交', saved.git?.changed === true, JSON.stringify(saved.git));
+
+    const wantHash = createHash('sha256').update(probe, 'utf8').digest('hex');
+    const cfg = JSON.parse(await readFile(configPath, 'utf8'));
+    check('config.json 存的是哈希而非明文', cfg.passcodeHash === wantHash && !configBefore.includes(probe));
+
+    const m = JSON.parse(await readFile(join(ROOT, 'gallery', 'manifest.json'), 'utf8'));
+    check('manifest 带上了新口令哈希', m.site.passcodeHash === wantHash, m.site.passcodeHash);
+
+    const committed = await git(['show', 'refs/heads/gallery:manifest.json']);
+    check('新哈希确实进了提交', JSON.parse(committed).site.passcodeHash === wantHash);
+    check('gallery 仍然只有一个提交', (await git(['rev-list', '--count', 'refs/heads/gallery'])).trim() === '1');
+
+    const again = await post('/api/settings', { passcode: probe, push: false });
+    check('重复保存不产生空提交', again.git?.changed === false, JSON.stringify(again.git));
+  } finally {
+    // Put the real hash back on disk, then save once with no passcode field so the manifest and
+    // the gallery commit get re-stamped from the restored config.
+    await writeFile(configPath, configBefore, 'utf8');
+    await post('/api/settings', { push: false });
+  }
+
+  const restored = JSON.parse(await readFile(join(ROOT, 'gallery', 'manifest.json'), 'utf8'));
+  check('测试后口令已还原', restored.site.passcodeHash === JSON.parse(configBefore).passcodeHash);
 } catch (err) {
   failures++;
   console.log(`\n测试过程中抛出异常：${err.message}`);

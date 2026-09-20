@@ -96,11 +96,16 @@ app.post('/api/settings', asyncRoute(async (req, res) => {
 
   await writeFile(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 
-  // Re-stamp the manifest so the site picks up the new title/passcode on the next build.
+  // Re-stamp the manifest so the site picks up the new title/passcode.
   const manifest = await loadManifest(config);
   await saveManifest(manifest);
 
-  res.json({ ok: true, config: publicConfig(config) });
+  // Settings only reach visitors through a rebuild, and a rebuild only runs on a push. Publishing
+  // here is what makes a passcode change take effect now instead of silently waiting for the next
+  // upload. publishGallery compares trees first, so re-saving unchanged settings costs nothing.
+  const git = await publishGallery('gallery: 更新站点设置', { push: req.body?.push !== false });
+
+  res.json({ ok: true, config: publicConfig(config), git });
 }));
 
 function publicConfig(config) {
