@@ -1,9 +1,14 @@
 /**
- * EXIF extraction. exifr reads HEIC, JPEG and TIFF containers, so one code path covers both the
- * A7R V's .HIF files and anything exported from Lightroom.
+ * EXIF extraction.
+ *
+ * exifr does the tag decoding, but it is not allowed to identify HEIF files: its brand check
+ * rejects the 10-bit `.HIF` files the A7R V writes. We locate the Exif item ourselves and give
+ * exifr a bare TIFF block, which it reads the same way for every container.
  */
 
 import exifr from 'exifr';
+
+import { isHeif, readExifBlock } from './heif.mjs';
 
 const EXIF_OPTIONS = {
   tiff: true,
@@ -21,15 +26,22 @@ const EXIF_OPTIONS = {
   sanitize: true,
 };
 
+/** Same read, but with the timestamps left as the raw `YYYY:MM:DD HH:mm:ss` digits. */
+const UNREVIVED_OPTIONS = { ...EXIF_OPTIONS, gps: false, reviveValues: false, translateValues: false };
+
 /**
  * @returns {Promise<{exif: object, takenAt: string|null, orientation: number,
  *                    declaredWidth: number|null, declaredHeight: number|null,
  *                    gps: {lat: number, lon: number}|null}>}
  */
 export async function readExif(buf) {
+  // A HEIF file is reduced to its TIFF block first; see readExifBlock for why exifr cannot be
+  // left to recognise the container itself.
+  const source = (isHeif(buf) && readExifBlock(buf)) || buf;
+
   let raw = null;
   try {
-    raw = await exifr.parse(buf, EXIF_OPTIONS);
+    raw = await exifr.parse(source, EXIF_OPTIONS);
   } catch {
     // Unreadable or absent EXIF is not an error; the photo is still perfectly publishable.
   }
@@ -54,7 +66,7 @@ export async function readExif(buf) {
 
   return {
     exif,
-    takenAt: formatNaiveDate(raw.DateTimeOriginal || raw.CreateDate || raw.ModifyDate),
+    takenAt: await readTakenAt(source, raw),
     orientation: firstNumber(raw.Orientation) || 1,
     declaredWidth: firstNumber(raw.ExifImageWidth, raw.ImageWidth) || null,
     declaredHeight: firstNumber(raw.ExifImageHeight, raw.ImageHeight) || null,
@@ -63,11 +75,32 @@ export async function readExif(buf) {
 }
 
 /**
- * Formats a Date as a timezone-less `YYYY-MM-DDTHH:mm:ss` string.
+ * Returns the moment the shutter fired, worded the way the camera worded it:
+ * `YYYY-MM-DDTHH:mm:ss`, with no timezone.
  *
- * exifr builds Dates from the literal EXIF digits interpreted in the host timezone, so reading
- * them back with local getters returns exactly the wall-clock time the camera recorded — which is
- * what we want to show, regardless of where the photo was taken or where this script runs.
+ * This deliberately reads the undecoded digits instead of exifr's revived Date. When a file
+ * carries OffsetTimeOriginal — the A7R V writes one — exifr resolves the timestamp to an absolute
+ * instant, and rendering that instant here would relabel the photo in *this machine's* timezone.
+ * Photos taken abroad and uploaded after getting home would show, sort and group under the wrong
+ * local time, usually the wrong day too. The literal digits are what the photographer saw on the
+ * back of the camera, so those are what we keep.
+ */
+async function readTakenAt(source, revived) {
+  try {
+    const raw = await exifr.parse(source, UNREVIVED_OPTIONS);
+    const literal = firstString(raw?.DateTimeOriginal, raw?.CreateDate, raw?.ModifyDate);
+    const parts = literal?.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (parts) return `${parts[1]}-${parts[2]}-${parts[3]}T${parts[4]}:${parts[5]}:${parts[6]}`;
+  } catch {
+    // Fall back to the revived value below.
+  }
+  return formatNaiveDate(revived.DateTimeOriginal || revived.CreateDate || revived.ModifyDate);
+}
+
+/**
+ * Last resort for files whose timestamps only survived as a Date: read it back with local getters.
+ * Accurate only when the photo's timezone matches this machine's, which is why readTakenAt tries
+ * the raw digits first.
  */
 function formatNaiveDate(value) {
   if (!value) return null;
