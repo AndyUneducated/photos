@@ -48,9 +48,27 @@ export function formatExif(exif) {
 
   const body = exif.model || exif.make;
   if (body) parts.push(String(body));
-  if (exif.lens) parts.push(String(exif.lens));
+
+  if (exif.lens) {
+    // Phones pack everything into LensModel ("iPhone 15 Pro back camera 6.765mm f/1.78"):
+    // the body name, then the focal length and aperture that get their own fields below.
+    // Left alone it reads "iPhone 15 Pro · back camera 6.765mm f/1.78 · f/1.78 · … · 24mm",
+    // with the aperture twice and two disagreeing focal lengths (physical vs 35mm-equivalent).
+    let lens = String(exif.lens);
+    if (body && lens.startsWith(String(body))) {
+      lens = lens.slice(String(body).length).trim();
+    }
+    // Only drop the trailing spec when it really is a repeat: the aperture has to match the one
+    // we are about to print, and something has to be left over. That keeps a lens whose actual
+    // name ends in "24-70mm f/2.8" from being erased.
+    const spec = lens.match(/^(.*?)\s*[\d.]+mm\s+f\/([\d.]+)$/i);
+    if (spec && spec[1] && Number(spec[2]) === exif.fNumber) lens = spec[1];
+    if (lens) parts.push(lens);
+  }
+
   if (typeof exif.fNumber === 'number' && Number.isFinite(exif.fNumber)) {
-    parts.push('f/' + (Number.isInteger(exif.fNumber) ? exif.fNumber : exif.fNumber.toFixed(1)));
+    // f/2.8 and f/1.78 both need to survive: trim zeros, never round away a digit.
+    parts.push('f/' + String(Math.round(exif.fNumber * 100) / 100));
   }
   if (exif.exposure) {
     const e = String(exif.exposure);

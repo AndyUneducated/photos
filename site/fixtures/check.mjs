@@ -55,10 +55,20 @@ function metaIslandChecks() {
   }
 
   const captions = Object.values(parsed).map((e) => e.caption || '');
+  const exifLines = Object.values(parsed)
+    .map((e) => e.exif || '')
+    .filter(Boolean);
+  // Apple repeats the focal length and aperture inside LensModel; the formatter drops the repeat
+  // but must not touch a lens whose real name happens to end the same way.
+  const phone = exifLines.find((s) => s.startsWith('iPhone'));
+  const zoom = exifLines.find((s) => s.includes('FE 24-70mm'));
+
   return [
     ['meta island parses as JSON', true, `${Object.keys(parsed).length} photos`],
     ['no raw </script> in island', !/<\/script/i.test(island[1])],
     ['hostile caption survived as text', captions.some((c) => c.includes('</script>'))],
+    ['phone exif states aperture once', Boolean(phone) && (phone.match(/f\//g) || []).length === 1, phone],
+    ['zoom lens name left intact', Boolean(zoom) && zoom.includes('FE 24-70mm F2.8 GM II'), zoom],
   ];
 }
 
