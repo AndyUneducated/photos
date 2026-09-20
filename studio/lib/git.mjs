@@ -12,9 +12,18 @@
  */
 
 import { spawn } from 'node:child_process';
-import { access, readdir } from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 import { GALLERY_DIR, ROOT } from './gallery.mjs';
+
+/**
+ * GitHub Actions reads a workflow from the branch that was pushed, so a push to `gallery` triggers
+ * nothing unless that branch carries the workflow itself. Copying it in on every publish is what
+ * makes uploading a photo rebuild the site, and copying (rather than committing it once) keeps the
+ * two copies from drifting apart.
+ */
+const WORKFLOW_PATH = join('.github', 'workflows', 'deploy.yml');
 
 /** The canonical hash of git's empty tree; used to seed the gallery branch. */
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
@@ -140,6 +149,8 @@ async function directoryHasContent(dir) {
 export async function publishGallery(message, { push = true } = {}) {
   const ident = await identityArgs();
 
+  if (push) await assertNotBehindRemote();
+  await syncWorkflow();
   await git(['add', '-A'], { cwd: GALLERY_DIR });
   const tree = await git(['write-tree'], { cwd: GALLERY_DIR });
 
@@ -163,6 +174,52 @@ export async function publishGallery(message, { push = true } = {}) {
   }
 
   return { changed: true, commit, pushed };
+}
+
+/**
+ * Refuses to publish when the remote gallery is not what this worktree was last synced to.
+ *
+ * Every publish force-pushes a parentless commit, so git has no ancestry to protect anyone with:
+ * publishing from a machine that missed someone else's upload would silently delete their photos.
+ * Comparing the committed tree here is the only thing standing between two computers and a wiped
+ * gallery. Being unable to reach the remote is not a conflict — the push itself will fail loudly.
+ */
+async function assertNotBehindRemote() {
+  const remote = await gitOrNull(['remote', 'get-url', 'origin']);
+  if (!remote) return;
+
+  try {
+    await git(['fetch', '--quiet', 'origin', 'gallery']);
+  } catch {
+    return;
+  }
+
+  const remoteTree = await gitOrNull(['rev-parse', 'FETCH_HEAD^{tree}']);
+  const localTree = await gitOrNull(['rev-parse', 'HEAD^{tree}'], { cwd: GALLERY_DIR });
+  if (!remoteTree || !localTree || remoteTree === localTree) return;
+
+  throw new GitError(
+    '远程 gallery 分支和本地对不上，可能是在另一台电脑上发布过。继续发布会用本地内容覆盖远程，' +
+      '已中止。请先在本目录执行：git -C gallery fetch origin gallery 然后 ' +
+      'git -C gallery reset --hard FETCH_HEAD，确认照片都在之后再发布。',
+    { args: ['fetch', 'origin', 'gallery'], stderr: '' },
+  );
+}
+
+/** Mirrors main's deploy workflow into the gallery worktree. See WORKFLOW_PATH. */
+async function syncWorkflow() {
+  let source;
+  try {
+    source = await readFile(join(ROOT, WORKFLOW_PATH), 'utf8');
+  } catch {
+    return; // No workflow to mirror; publishing still has to work.
+  }
+
+  const target = join(GALLERY_DIR, WORKFLOW_PATH);
+  if (await readFile(target, 'utf8').catch(() => null) === source) return;
+
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, source, 'utf8');
 }
 
 /** Commits and pushes changes on `main`. Never forced — `main` keeps a normal history. */

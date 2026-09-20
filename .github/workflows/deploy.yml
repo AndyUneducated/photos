@@ -25,6 +25,11 @@ jobs:
     steps:
       - name: Check out site code
         uses: actions/checkout@v4
+        # Explicit: this workflow also runs from a push to `gallery`, and that branch holds only
+        # photos. Without a ref, checkout would grab the triggering ref and there would be no
+        # package.json to build.
+        with:
+          ref: main
 
       - name: Check out photos
         uses: actions/checkout@v4
