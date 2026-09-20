@@ -1,0 +1,4 @@
+# Dev fixture images, regenerate with: node site/fixtures/generate.mjs
+# Production photos are copied into dist/p by scripts/collect.mjs.
+*
+!.gitignore

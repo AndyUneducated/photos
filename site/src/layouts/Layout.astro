@@ -1,0 +1,59 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  passcodeHash: string;
+}
+
+const { title, passcodeHash } = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- This gallery is private-ish: never index it, never follow out of it. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='6.5' fill='none' stroke='%23ff7a45' stroke-width='2'/%3E%3C/svg%3E"
+    />
+
+    {/* Render-blocking and tiny: decides before first paint whether the gate is
+        up, otherwise a returning visitor sees the overlay flash. */}
+    <script is:inline define:vars={{ passcodeHash }}>
+      try {
+        var cls = document.documentElement.classList;
+        cls.add('js');
+        var unlocked = !passcodeHash;
+        try {
+          unlocked = unlocked || localStorage.getItem('photos.unlock') === passcodeHash;
+        } catch (err) {
+          /* localStorage can throw in locked-down privacy modes */
+        }
+        cls.add(unlocked ? 'is-unlocked' : 'is-locked');
+      } catch (err) {
+        document.documentElement.classList.add('js', 'is-unlocked');
+      }
+    </script>
+  </head>
+  <body>
+    <slot />
+    <noscript>
+      <p class="noscript">这个相册需要 JavaScript 才能显示照片。</p>
+    </noscript>
+    <style>
+      .noscript {
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--fg-dim);
+      }
+    </style>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "photos",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Private-ish family photo gallery. HEIF in, AVIF out, static site on GitHub Pages.",
+  "scripts": {
+    "studio": "node studio/server.mjs",
+    "dev": "astro dev",
+    "build": "astro build && node scripts/collect.mjs",
+    "preview": "astro preview",
+    "setup": "node scripts/setup-gallery.mjs"
+  },
+  "dependencies": {
+    "astro": "^5.14.1",
+    "exifr": "^7.1.3",
+    "express": "^5.1.0",
+    "libheif-js": "^1.19.8",
+    "photoswipe": "^5.4.4",
+    "sharp": "^0.34.4"
+  }
+}

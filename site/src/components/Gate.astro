@@ -1,0 +1,196 @@
+---
+interface Props {
+  title: string;
+  tagline: string;
+  passcodeHash: string;
+}
+
+const { title, tagline, passcodeHash } = Astro.props;
+---
+
+{/* A soft gate, deliberately: it keeps the album out of casual view and stops
+    thumbnails downloading, and that is all it claims to do. */}
+<div
+  class="gate"
+  id="gate"
+  data-hash={passcodeHash}
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="gate-title"
+>
+  <div class="gate__panel">
+    <h1 class="gate__title" id="gate-title">{title}</h1>
+    {tagline && <p class="gate__tagline">{tagline}</p>}
+
+    <form class="gate__form" id="gate-form" novalidate>
+      <input
+        class="gate__input"
+        id="gate-input"
+        type="password"
+        name="passcode"
+        inputmode="text"
+        autocomplete="current-password"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        placeholder="密码"
+        aria-label="密码"
+        aria-describedby="gate-error"
+      />
+      <button class="gate__submit" id="gate-submit" type="submit">进入</button>
+    </form>
+
+    <p class="gate__error" id="gate-error" role="status" aria-live="polite"></p>
+  </div>
+</div>
+
+<style>
+  .gate {
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--bg);
+    opacity: 1;
+    transition:
+      opacity 0.42s var(--ease),
+      visibility 0s linear 0.42s;
+  }
+
+  /* Set before first paint by the inline boot script, so a returning visitor
+     never sees the overlay at all. */
+  :global(html.is-unlocked) .gate {
+    display: none;
+  }
+
+  .gate.is-gone {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .gate__panel {
+    width: min(340px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    /* Optically centred: a dead-centre panel reads as low on a phone. */
+    margin-bottom: 8vh;
+  }
+
+  .gate__title {
+    margin: 0;
+    font-size: clamp(20px, 5vw, 25px);
+    font-weight: 620;
+    letter-spacing: -0.028em;
+  }
+
+  .gate__tagline {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    color: var(--fg-faint);
+    letter-spacing: 0.04em;
+  }
+
+  .gate__form {
+    display: flex;
+    gap: 8px;
+    margin-top: 26px;
+  }
+
+  .gate__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 14px;
+    /* 16px keeps iOS Safari from zooming the viewport on focus. */
+    font-size: 16px;
+    color: var(--fg);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    transition:
+      border-color 0.2s var(--ease),
+      background-color 0.2s var(--ease);
+
+    &::placeholder {
+      color: var(--fg-faint);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: color-mix(in oklab, var(--accent) 65%, transparent);
+      background: color-mix(in oklab, var(--accent) 6%, var(--bg-raised));
+    }
+  }
+
+  .gate__input.is-wrong {
+    border-color: color-mix(in oklab, #ff5b5b 60%, transparent);
+    animation: shake 0.38s var(--ease);
+  }
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    18% {
+      transform: translateX(-7px);
+    }
+    38% {
+      transform: translateX(6px);
+    }
+    58% {
+      transform: translateX(-4px);
+    }
+    78% {
+      transform: translateX(2px);
+    }
+  }
+
+  .gate__submit {
+    flex: 0 0 auto;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 560;
+    color: var(--bg);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition:
+      filter 0.18s var(--ease),
+      opacity 0.18s var(--ease);
+
+    &:hover {
+      filter: brightness(1.08);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+
+  .gate__error {
+    margin: 12px 0 0;
+    min-height: 1.4em;
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--fg-dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gate,
+    .gate__input,
+    .gate__submit {
+      transition-duration: 0.01ms;
+    }
+
+    .gate__input.is-wrong {
+      animation: none;
+    }
+  }
+</style>

@@ -1,0 +1,19 @@
+{
+  "siteTitle": "Anning Photos",
+  "siteTagline": "家庭相册",
+  "domain": "photos.anning.org",
+
+  "budgetBytes": 838860800,
+
+  "passcodeHash": "",
+
+  "_concurrency": "留空则按 CPU 和内存自动决定；内存不够时设成 1",
+  "concurrency": null,
+
+  "webMaxEdge": 2560,
+  "thumbMaxEdge": 640,
+  "webQuality": 58,
+  "thumbQuality": 50,
+
+  "reverseGeocode": true
+}

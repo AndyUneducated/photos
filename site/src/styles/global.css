@@ -1,0 +1,197 @@
+/*
+ * Hand-authored. No CSS framework, no CSS dependency.
+ * Only three things live here: design tokens, the document reset, and the
+ * PhotoSwipe overrides (PhotoSwipe builds its DOM at runtime, so Astro's
+ * scoped styles cannot reach it). Everything else is component-scoped.
+ */
+
+:root {
+  /* --- surface ------------------------------------------------------- */
+  --bg: #0a0a0b;
+  --bg-header: color-mix(in oklab, var(--bg) 72%, transparent);
+  --bg-raised: #131316;
+
+  /* --- ink ----------------------------------------------------------- */
+  --fg: #eceae6;
+  --fg-dim: #9a99a1;
+  --fg-faint: #62616a;
+
+  /* The single accent. Used for focus rings, the unlock action and links.
+     Never for large fills — the photographs are the only colour on the page. */
+  --accent: #ff7a45;
+
+  --line: color-mix(in oklab, var(--fg) 13%, transparent);
+  --line-soft: color-mix(in oklab, var(--fg) 7%, transparent);
+
+  /* --- metrics ------------------------------------------------------- */
+  --gap: 10px;
+  --radius: 10px;
+  --radius-pill: 999px;
+  --pad-x: clamp(12px, 2.2vw, 28px);
+  --header-h: 54px;
+  --shell-max: 2040px;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  /* The gate locks scrolling; keep the scrollbar gutter stable either way. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-wrap: break-word;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* The gate must not allow scrolling the gallery behind it. */
+html.is-locked,
+html.is-locked body {
+  overflow: hidden;
+}
+
+/* =====================================================================
+   PhotoSwipe overrides
+   ===================================================================== */
+
+.pswp {
+  --pswp-bg: #08080a;
+  --pswp-placeholder-bg: #151518;
+  --pswp-icon-color: #f2f1ee;
+  --pswp-icon-color-secondary: #0a0a0b;
+  --pswp-icon-stroke-width: 0;
+  /* Below the gate (9500) so an unlocked-then-reloaded page can never show a
+     lightbox over the overlay. */
+  --pswp-root-z-index: 9000;
+}
+
+.pswp__top-bar {
+  background: linear-gradient(to bottom, #0a0a0bb8, transparent);
+}
+
+/* Stroke-drawn icons for the two buttons we add, so they match the hairline
+   weight of the rest of the chrome instead of PhotoSwipe's solid glyphs. */
+.pswp-icn {
+  fill: none;
+  stroke: var(--pswp-icon-color);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pswp__button--pswp-info.is-active .pswp-icn {
+  stroke: var(--accent);
+}
+
+.pswp-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 20;
+  padding: 44px var(--pad-x) max(18px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, #08080ceb 0%, #08080cd0 55%, transparent 100%);
+  color: var(--fg);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition:
+    opacity 0.24s var(--ease),
+    transform 0.28s var(--ease-out),
+    visibility 0s linear 0.28s;
+  pointer-events: none;
+}
+
+.pswp--info-open .pswp-caption:not(:empty) {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+  pointer-events: auto;
+}
+
+.pswp-caption__inner {
+  max-width: 68ch;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pswp-caption__date {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.pswp-caption__text {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+.pswp-caption__exif {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pswp-caption__loc {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  align-self: flex-start;
+  border-bottom: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+
+  &:hover {
+    border-bottom-color: var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pswp-caption {
+    transition-duration: 0.01ms;
+    transform: none;
+  }
+}

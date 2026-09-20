@@ -1,0 +1,36 @@
+---
+import { formatDateZh } from '../lib/format.js';
+
+interface Props {
+  count: number;
+  newestTakenAt: string;
+}
+
+const { count, newestTakenAt } = Astro.props;
+const newest = formatDateZh(newestTakenAt);
+---
+
+<footer class="footer">
+  <span>{count} 张照片</span>
+  {newest && <span class="footer__sep" aria-hidden="true">·</span>}
+  {newest && <span>最新 {newest}</span>}
+</footer>
+
+<style>
+  .footer {
+    max-width: var(--shell-max);
+    margin-inline: auto;
+    padding: 28px var(--pad-x) max(36px, env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    color: var(--fg-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .footer__sep {
+    opacity: 0.55;
+  }
+</style>

@@ -1,0 +1,155 @@
+---
+import { assetUrl } from '../lib/manifest.js';
+import { formatDateZh } from '../lib/format.js';
+
+interface Props {
+  photo: {
+    id: string;
+    albumId: string;
+    web: string;
+    thumb: string;
+    w: number;
+    h: number;
+    tw: number;
+    th: number;
+    lqip: string;
+    caption: string;
+    takenAt: string;
+  };
+}
+
+const { photo } = Astro.props;
+
+// Never `import` a photo or use astro:assets: in production these files do not
+// exist at build time, scripts/collect.mjs drops them into dist/p afterwards.
+const href = assetUrl(photo.web);
+const thumb = assetUrl(photo.thumb);
+const alt = photo.caption || formatDateZh(photo.takenAt) || '照片';
+---
+
+<a
+  class="tile"
+  href={href}
+  data-id={photo.id}
+  data-album={photo.albumId}
+  data-pswp-width={photo.w}
+  data-pswp-height={photo.h}
+  target="_blank"
+  rel="noreferrer"
+  style={photo.lqip ? `--lqip:url('${photo.lqip}')` : undefined}
+>
+  {/* No `src`: thumbnails must not start downloading until the gate is passed.
+      width/height are still set, so the masonry column reserves the exact box
+      and nothing shifts when the image arrives. */}
+  <img
+    class="tile__img"
+    data-src={thumb}
+    width={photo.tw}
+    height={photo.th}
+    alt={alt}
+    loading="lazy"
+    decoding="async"
+    draggable="false"
+  />
+</a>
+
+<style>
+  .tile {
+    position: relative;
+    display: block;
+    break-inside: avoid;
+    margin: 0 0 var(--gap);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background-color: var(--bg-raised);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* The LQIP layer. Blurring lives on a pseudo element so the real thumbnail
+     drawn on top of it stays sharp. */
+  .tile::before {
+    content: '';
+    position: absolute;
+    inset: -8%;
+    background-image: var(--lqip);
+    background-size: cover;
+    background-position: center;
+    filter: blur(14px) saturate(1.15);
+    transform: scale(1.02);
+    z-index: 0;
+  }
+
+  .tile__img {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: auto;
+    opacity: 0;
+    transition:
+      opacity 0.5s var(--ease),
+      transform 0.45s var(--ease),
+      filter 0.45s var(--ease);
+  }
+
+  .tile__img.is-loaded {
+    opacity: 1;
+  }
+
+  /* --- scroll reveal / filter transitions ----------------------------
+     All four states are written with the same `html.js` prefix so they have
+     identical specificity and plain source order decides the winner. Without
+     JS the tiles simply stay visible. */
+
+  :global(html.js) .tile {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+    transition:
+      opacity 0.5s var(--ease-out),
+      transform 0.55s var(--ease-out);
+  }
+
+  :global(html.js) .tile.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  :global(html.js) .tile.is-entering {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.985);
+  }
+
+  :global(html.js) .tile.is-leaving {
+    opacity: 0;
+    transform: scale(0.955);
+    transition:
+      opacity 0.17s var(--ease),
+      transform 0.17s var(--ease);
+  }
+
+  :global(html.js) .tile.is-hidden {
+    display: none;
+  }
+
+  /* --- pointer affordance -------------------------------------------- */
+
+  @media (hover: hover) and (pointer: fine) {
+    .tile:hover .tile__img {
+      transform: scale(1.028);
+      filter: brightness(1.07);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile,
+    :global(html.js) .tile,
+    .tile__img {
+      transition-duration: 0.01ms !important;
+      transform: none !important;
+    }
+
+    .tile:hover .tile__img {
+      transform: none;
+      filter: none;
+    }
+  }
+</style>

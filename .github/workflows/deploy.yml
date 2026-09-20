@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+# The site is built from two branches: `main` holds the code, `gallery` holds the photos as a
+# single parentless commit that gets replaced on every publish. Either one changing should
+# rebuild the site.
+on:
+  push:
+    branches: [main, gallery]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A publish pushes `gallery` and may push `main` moments later; let the newer run win rather than
+# deploying a stale build on top of a fresh one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out site code
+        uses: actions/checkout@v4
+
+      - name: Check out photos
+        uses: actions/checkout@v4
+        # Absent on a brand-new repository; the build falls back to an empty gallery.
+        continue-on-error: true
+        with:
+          ref: gallery
+          path: gallery
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

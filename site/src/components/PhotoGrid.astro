@@ -1,0 +1,49 @@
+---
+import PhotoTile from './PhotoTile.astro';
+
+interface Props {
+  photos: any[];
+}
+
+const { photos } = Astro.props;
+---
+
+<div class="grid-wrap">
+  <div class="grid" id="grid">
+    {photos.map((photo) => <PhotoTile photo={photo} />)}
+  </div>
+</div>
+
+<style>
+  /* Container queries rather than media queries: the column count should react
+     to the width of the grid itself, not the viewport. */
+  .grid-wrap {
+    container-type: inline-size;
+    max-width: var(--shell-max);
+    margin-inline: auto;
+    padding: 14px var(--pad-x) 0;
+  }
+
+  .grid {
+    column-count: 1;
+    column-gap: var(--gap);
+  }
+
+  @container (min-width: 460px) {
+    .grid {
+      column-count: 2;
+    }
+  }
+
+  @container (min-width: 920px) {
+    .grid {
+      column-count: 3;
+    }
+  }
+
+  @container (min-width: 1440px) {
+    .grid {
+      column-count: 4;
+    }
+  }
+</style>

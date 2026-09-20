@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import PhotoGrid from '../components/PhotoGrid.astro';
+import EmptyState from '../components/EmptyState.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import Gate from '../components/Gate.astro';
+import { loadManifest } from '../lib/manifest.js';
+import { formatDateTimeZh, formatExif, locationLabel, osmUrl } from '../lib/format.js';
+
+const manifest = loadManifest();
+const { site, albums, photos } = manifest;
+
+// The lightbox needs caption/EXIF/location text, but there is no reason to ship
+// the raw manifest and the formatting logic to the browser: everything is
+// pre-rendered to strings here and empty fields are dropped entirely.
+const photoMeta = Object.create(null);
+for (const photo of photos) {
+  const entry = {};
+  const date = formatDateTimeZh(photo.takenAt);
+  const exif = formatExif(photo.exif);
+  if (date) entry.date = date;
+  if (photo.caption) entry.caption = photo.caption;
+  if (exif) entry.exif = exif;
+  if (photo.location) {
+    entry.loc = locationLabel(photo.location);
+    entry.locUrl = osmUrl(photo.location);
+  }
+  photoMeta[photo.id] = entry;
+}
+---
+
+<Layout title={site.title} passcodeHash={site.passcodeHash}>
+  <Header
+    title={site.title}
+    tagline={site.tagline}
+    albums={albums}
+    total={photos.length}
+  />
+
+  <main id="main">
+    {photos.length === 0 ? <EmptyState /> : <PhotoGrid photos={photos} />}
+  </main>
+
+  {photos.length > 0 && <SiteFooter count={photos.length} newestTakenAt={photos[0].takenAt} />}
+
+  {site.passcodeHash && <Gate title={site.title} tagline={site.tagline} passcodeHash={site.passcodeHash} />}
+
+  <script type="application/json" id="photo-meta" set:html={JSON.stringify(photoMeta)} is:inline />
+
+  <script>
+    import '../scripts/main.js';
+  </script>
+</Layout>

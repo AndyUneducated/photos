@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>相册工作台</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>相册工作台</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="gauge" id="gauge" title="已用空间 / 预算">
+      <div class="gauge-bar"><i id="gauge-fill"></i></div>
+      <span id="gauge-label">—</span>
+    </div>
+    <a id="site-link" class="ghost-btn" href="#" target="_blank" rel="noreferrer">打开网站</a>
+    <button class="ghost-btn" id="tab-manage-btn">管理</button>
+  </div>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+
+<main>
+  <!-- ------------------------------------------------------------ upload -->
+  <section class="panel" id="panel-upload">
+    <div class="panel-head">
+      <h2>1 · 选择照片</h2>
+      <p class="hint">支持索尼 .HIF、iPhone .HEIC，以及 JPEG / PNG / TIFF。原始文件不会被上传到网上，只在本机处理。</p>
+    </div>
+
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="file-input" multiple accept=".hif,.HIF,.heic,.HEIC,.heif,.avif,.jpg,.jpeg,.png,.tif,.tiff,.webp">
+      <strong>把照片拖到这里</strong>
+      <span>或者点击选择文件</span>
+    </label>
+
+    <ul class="filelist" id="filelist"></ul>
+
+    <div class="row" id="upload-actions" hidden>
+      <button class="primary-btn" id="process-btn">开始处理</button>
+      <button class="ghost-btn" id="clear-btn">清空</button>
+      <span class="hint" id="upload-summary"></span>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ review -->
+  <section class="panel" id="panel-review" hidden>
+    <div class="panel-head">
+      <h2>2 · 检查与命名</h2>
+      <p class="hint">取消勾选不想发布的照片。如果有照片方向不对，用照片上的旋转按钮修正。</p>
+    </div>
+
+    <div class="progress" id="progress" hidden>
+      <div class="progress-bar"><i id="progress-fill"></i></div>
+      <span id="progress-label"></span>
+    </div>
+
+    <div class="album-form">
+      <label class="field">
+        <span>相册名</span>
+        <input type="text" id="album-title" placeholder="例如：秋天的西湖" autocomplete="off">
+      </label>
+      <label class="field narrow">
+        <span>日期</span>
+        <input type="date" id="album-date">
+      </label>
+      <label class="switch" title="默认不公开位置。打开后这个相册里的照片会显示拍摄地点。">
+        <input type="checkbox" id="album-location">
+        <span>公开这个相册的拍摄位置</span>
+      </label>
+    </div>
+
+    <div id="location-warning" class="inline-warning" hidden>
+      仓库是公开的，打开位置意味着精确坐标会公开可见。在家里或其他私人场所拍的照片建议保持关闭。
+    </div>
+
+    <div class="review-grid" id="review-grid"></div>
+
+    <div class="row">
+      <button class="primary-btn" id="publish-btn" disabled>发布到网站</button>
+      <span class="hint" id="review-summary"></span>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ manage -->
+  <section class="panel" id="panel-manage" hidden>
+    <div class="panel-head">
+      <h2>管理</h2>
+      <p class="hint">删除相册可以释放空间。仓库用的是单提交的 gallery 分支，所以删掉的照片不会留在 git 历史里。</p>
+    </div>
+
+    <div class="budget-detail" id="budget-detail"></div>
+
+    <table class="albums" id="albums-table">
+      <thead><tr><th></th><th>相册</th><th>日期</th><th class="num">张数</th><th class="num">占用</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="row">
+      <button class="danger-btn" id="delete-albums-btn" disabled>删除选中的相册</button>
+      <button class="ghost-btn" id="reclaim-btn" title="清理被 gallery 分支覆盖后残留的 git 对象">回收本地磁盘</button>
+    </div>
+
+    <details class="settings">
+      <summary>站点设置</summary>
+      <div class="album-form">
+        <label class="field"><span>站点标题</span><input type="text" id="set-title"></label>
+        <label class="field"><span>副标题</span><input type="text" id="set-tagline"></label>
+        <label class="field narrow"><span>预算 (MB)</span><input type="number" id="set-budget" min="50" step="50"></label>
+        <label class="field"><span>访问口令</span><input type="password" id="set-passcode" placeholder="留空 = 不改动" autocomplete="new-password"></label>
+      </div>
+      <p class="hint">口令只以 SHA-256 哈希的形式存进 config.json。这是一道软门禁：能挡住路人和搜索引擎，挡不住会看源码的人。</p>
+      <button class="primary-btn" id="save-settings-btn">保存设置</button>
+    </details>
+  </section>
+</main>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
