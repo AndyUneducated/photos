@@ -5,7 +5,7 @@
 
   "budgetBytes": 838860800,
 
-  "passcodeHash": "",
+  "passcodeHash": "1730c22287cc6e5bedfb5c1012ce5f629a570ef4349a5c3826c4dd4f7281bdc0",
 
   "_concurrency": "留空则按 CPU 和内存自动决定；内存不够时设成 1",
   "concurrency": null,

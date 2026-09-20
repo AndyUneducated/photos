@@ -104,7 +104,9 @@ export function createGate(onUnlock) {
   if (form) {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const value = input ? input.value : '';
+      // Trimmed because the passcode usually arrives pasted from a chat app, which
+      // tends to bring a trailing space or newline along with it.
+      const value = input ? input.value.trim() : '';
       if (!value) {
         reject();
         return;

@@ -85,9 +85,12 @@ app.post('/api/settings', asyncRoute(async (req, res) => {
   }
   // Hashing here rather than in the browser means the plaintext passcode is never written to
   // config.json, which is a tracked file that ends up in a public repository.
+  // Trimmed to match the gate, which trims what the visitor types; hashing a passcode with a
+  // stray trailing space here would make it impossible to ever enter.
   if (typeof passcode === 'string') {
-    config.passcodeHash = passcode
-      ? createHash('sha256').update(passcode, 'utf8').digest('hex')
+    const cleaned = passcode.trim();
+    config.passcodeHash = cleaned
+      ? createHash('sha256').update(cleaned, 'utf8').digest('hex')
       : '';
   }
 
