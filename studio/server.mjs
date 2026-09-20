@@ -214,6 +214,7 @@ app.post('/api/process', asyncRoute(async (req, res) => {
   if (fileIds.length === 0) return res.status(400).json({ error: '没有要处理的文件' });
 
   const config = await loadConfig();
+  const quality = normalizeTier(req.body?.quality);
   const jobId = randomUUID();
 
   const items = [];
@@ -221,10 +222,13 @@ app.post('/api/process', asyncRoute(async (req, res) => {
     const dir = stagingDir(fileId);
     const meta = JSON.parse(await readFile(join(dir, 'meta.json'), 'utf8'));
     const original = await findOriginal(dir);
+    // Remembered so that re-encoding a single photo (the rotate button) does not silently drop
+    // the batch back to standard quality.
+    await writeFile(join(dir, 'meta.json'), JSON.stringify({ ...meta, quality }, null, 2));
     items.push({ fileId, name: meta.name, originalPath: original, state: 'pending' });
   }
 
-  const job = { id: jobId, state: 'running', startedAt: Date.now(), items, cancelled: false };
+  const job = { id: jobId, state: 'running', startedAt: Date.now(), items, cancelled: false, quality };
   jobs.set(jobId, job);
 
   runJob(job, config).catch((err) => {
@@ -264,7 +268,7 @@ async function runJob(job, config) {
   const byId = new Map(job.items.map((item) => [item.fileId, item]));
 
   await runBatch(tasks, {
-    opts: pipelineOptions(config),
+    opts: pipelineOptions(config, { quality: job.quality }),
     concurrency: config.concurrency || defaultConcurrency(),
     isCancelled: () => job.cancelled,
     onEvent: (event) => {
@@ -295,12 +299,29 @@ async function runJob(job, config) {
   job.state = job.cancelled ? 'cancelled' : 'done';
 }
 
-function pipelineOptions(config, manualRotate = 0) {
+const QUALITY_TIERS = ['standard', 'high', 'max'];
+
+function normalizeTier(value) {
+  return QUALITY_TIERS.includes(value) ? value : 'standard';
+}
+
+/** Resolves a tier name to encoder settings, tolerating a config written before tiers existed. */
+function qualityFor(config, tier) {
+  const tiers = config.quality || {};
+  const chosen = tiers[normalizeTier(tier)] || tiers.standard || {};
+  return {
+    web: chosen.web ?? config.webQuality ?? 58,
+    thumb: chosen.thumb ?? config.thumbQuality ?? 50,
+  };
+}
+
+function pipelineOptions(config, { manualRotate = 0, quality = 'standard' } = {}) {
+  const q = qualityFor(config, quality);
   return {
     webMaxEdge: config.webMaxEdge,
     thumbMaxEdge: config.thumbMaxEdge,
-    webQuality: config.webQuality,
-    thumbQuality: config.thumbQuality,
+    webQuality: q.web,
+    thumbQuality: q.thumb,
     manualRotate,
   };
 }
@@ -354,7 +375,7 @@ app.post('/api/rotate', asyncRoute(async (req, res) => {
   const config = await loadConfig();
 
   const results = await runBatch([{ taskId: fileId, filePath: await findOriginal(dir) }], {
-    opts: pipelineOptions(config, degrees),
+    opts: pipelineOptions(config, { manualRotate: degrees, quality: meta.quality }),
     concurrency: 1,
   });
 

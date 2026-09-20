@@ -117,16 +117,142 @@ main { max-width: 1160px; margin: 0 auto; padding: 24px 20px 80px; display: grid
 
 .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
 
-.banner {
-  margin: 16px 20px 0;
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 14px;
-  border: 1px solid;
+/* ----------------------------------------------------------------- toasts */
+
+.toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column-reverse; /* newest nearest the corner */
+  gap: 10px;
+  width: min(380px, calc(100vw - 40px));
+  pointer-events: none;
 }
-.banner.info { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
-.banner.error { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
-.banner.ok { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+
+.toast {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 45%);
+  font-size: 14px;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.toast__text { margin: 0; }
+
+.toast__icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.toast__close {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.toast__close:hover { color: var(--text); }
+
+.toast--info { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.toast--info .toast__icon { background: var(--accent); }
+
+.toast--ok { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.toast--ok .toast__icon { background: var(--ok); }
+
+.toast--error { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); }
+.toast--error .toast__icon { background: var(--danger); }
+
+/* Still running: a ring that keeps spinning, so "in progress" reads at a glance and is
+   never mistaken for a finished state. */
+.toast--progress .toast__icon {
+  background: none;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  animation: toast-spin 0.7s linear infinite;
+}
+
+@keyframes toast-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition-duration: 0.01ms; }
+  .toast--progress .toast__icon { animation-duration: 2.4s; }
+}
+
+/* ------------------------------------------------------------ quality tier */
+
+.quality {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.quality__title { font-size: 13px; color: var(--muted); }
+
+.quality .hint { margin: 0; }
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seg span {
+  display: block;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.seg:hover span { color: var(--text); }
+
+.seg input:checked + span {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Keyboard focus has to stay visible: the real radio is off-screen. */
+.seg input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .inline-warning {
   margin: 12px 0 0;

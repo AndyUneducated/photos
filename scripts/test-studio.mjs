@@ -77,6 +77,26 @@ try {
   check('缩略图可以取到', thumbRes.ok && thumbBytes.length > 500, `${thumbRes.status}, ${thumbBytes.length}B`);
   check('缩略图是 AVIF', thumbBytes.includes(Buffer.from('ftyp')) && thumbBytes.includes(Buffer.from('av01')));
 
+  // ---------------------------------------------------------------- quality tiers
+  // An ignored tier would look identical to a working one everywhere except the encoded size,
+  // so size is what this measures. Measured ratio on the Sony sample is ~1.73.
+  const staged2 = await post(
+    `/api/stage?name=${encodeURIComponent(basename(sample))}`,
+    bytes,
+    'application/octet-stream',
+  );
+  const maxJob = await waitForJob(
+    (await post('/api/process', { fileIds: [staged2.fileId], quality: 'max' })).jobId,
+  );
+  const maxItem = maxJob.items[0];
+  check('最高画质处理成功', maxItem.state === 'ready', maxItem.error || maxItem.state);
+  check(
+    '最高画质明显更大',
+    maxItem.photo?.bytes > item.photo.bytes * 1.4,
+    `standard ${item.photo.bytes} B vs max ${maxItem.photo?.bytes} B`,
+  );
+  await fetch(`${BASE}/api/stage/${staged2.fileId}`, { method: 'DELETE' });
+
   // ---------------------------------------------------------------- publish
   const published = await post('/api/publish', {
     fileIds: [staged.fileId],
@@ -119,6 +139,13 @@ try {
 
   const parents = await git(['rev-list', '--count', 'refs/heads/gallery']);
   check('gallery 分支只有一个提交（无历史）', parents.trim() === '1', parents.trim());
+
+  // GitHub Actions reads a workflow from the branch that was pushed, so without this copy a
+  // gallery push rebuilds nothing and the site silently keeps serving the previous photos.
+  const lf = (s) => s.replace(/\r\n/g, '\n').trim();
+  const shipped = await git(['show', 'refs/heads/gallery:.github/workflows/deploy.yml']).catch(() => '');
+  const onMain = await readFile(join(ROOT, '.github', 'workflows', 'deploy.yml'), 'utf8');
+  check('gallery 分支带着构建工作流', lf(shipped) === lf(onMain), `${lf(shipped).length} vs ${lf(onMain).length}`);
 
   const stagingLeft = await readdir(join(ROOT, 'studio', '.state', 'staging')).catch(() => []);
   check('发布后清空了暂存目录', stagingLeft.length === 0, stagingLeft.join(','));

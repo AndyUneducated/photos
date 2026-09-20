@@ -14,6 +14,9 @@ const state = {
   files: new Map(),
   jobId: null,
   polling: null,
+  /** Handle for the toast that tracks the running process job, so it mutates instead of stacking. */
+  processToast: null,
+  warnedNoRemote: false,
   selected: new Set(),
   coverFileId: null,
   captions: new Map(),
@@ -35,15 +38,68 @@ async function api(path, options = {}) {
   return data;
 }
 
-function banner(message, kind = 'info') {
-  const el = $('banner');
-  if (!message) {
-    el.hidden = true;
-    return;
-  }
-  el.textContent = message;
-  el.className = `banner ${kind}`;
-  el.hidden = false;
+// ------------------------------------------------------------------ toasts
+
+/**
+ * A stack of dismissible messages rather than one shared line.
+ *
+ * Long jobs need a message that stays put and mutates in place (uploading -> processing ->
+ * published), while a failure needs to survive whatever status update comes next. Both fall out
+ * of returning a handle: keep it to update or close that toast, drop it to fire and forget.
+ *
+ * Successes clear themselves. Errors never do — a failed photo is something to act on.
+ */
+const DISMISS_MS = { ok: 4500, info: 3500, progress: 0, error: 0 };
+
+function toast(message, kind = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast--${kind}`;
+
+  const icon = document.createElement('span');
+  icon.className = 'toast__icon';
+  icon.setAttribute('aria-hidden', 'true');
+
+  const text = document.createElement('p');
+  text.className = 'toast__text';
+  text.textContent = message;
+
+  const close = document.createElement('button');
+  close.className = 'toast__close';
+  close.type = 'button';
+  close.setAttribute('aria-label', '关闭');
+  close.textContent = '\u00d7';
+
+  el.append(icon, text, close);
+  $('toasts').append(el);
+  // Next frame, so the entry transition has a start state to animate from.
+  requestAnimationFrame(() => el.classList.add('is-in'));
+
+  let timer = null;
+  const handle = {
+    update(nextMessage, nextKind = kind) {
+      text.textContent = nextMessage;
+      el.className = `toast toast--${nextKind} is-in`;
+      kind = nextKind;
+      handle.arm();
+      return handle;
+    },
+    arm() {
+      clearTimeout(timer);
+      const ms = DISMISS_MS[kind] ?? 0;
+      if (ms) timer = setTimeout(handle.close, ms);
+      return handle;
+    },
+    close() {
+      clearTimeout(timer);
+      el.classList.remove('is-in');
+      el.addEventListener('transitionend', () => el.remove(), { once: true });
+      // transitionend never fires if the element is already hidden or motion is reduced.
+      setTimeout(() => el.remove(), 400);
+    },
+  };
+
+  close.addEventListener('click', handle.close);
+  return handle.arm();
 }
 
 function fmtBytes(n) {
@@ -70,16 +126,17 @@ async function refresh() {
   $('site-link').href = state.config.domain ? `https://${state.config.domain}/` : '#';
 
   if (!data.git.worktreeReady) {
-    banner('还没初始化 gallery 分支。正在自动初始化…');
+    const t = toast('还没初始化 gallery 分支，正在自动初始化…', 'progress');
     try {
       await api('/api/setup', { method: 'POST' });
-      banner('gallery 分支初始化完成。', 'ok');
-      setTimeout(() => banner(''), 4000);
+      t.update('gallery 分支初始化完成。', 'ok');
     } catch (err) {
-      banner(`初始化失败：${err.message}`, 'error');
+      t.update(`初始化失败：${err.message}`, 'error');
     }
-  } else if (!data.git.remote) {
-    banner('还没有配置 origin 远端，发布只会提交到本地仓库，网站不会更新。', 'info');
+  } else if (!data.git.remote && !state.warnedNoRemote) {
+    // refresh() runs after every operation; this one is a standing condition, not an event.
+    state.warnedNoRemote = true;
+    toast('还没有配置 origin 远端，发布只会提交到本地仓库，网站不会更新。', 'info');
   }
 }
 
@@ -212,17 +269,23 @@ async function startProcessing() {
   const fileIds = [...state.files.values()].filter((f) => f.state === 'staged').map((f) => f.fileId);
   if (fileIds.length === 0) return;
 
-  banner('');
   $('panel-review').hidden = false;
   $('progress').hidden = false;
   $('process-btn').disabled = true;
 
+  const quality = document.querySelector('input[name="quality"]:checked')?.value || 'standard';
+  state.processToast = toast(`正在处理 0 / ${fileIds.length} 张…`, 'progress');
+
   try {
-    const { jobId } = await api('/api/process', { method: 'POST', body: JSON.stringify({ fileIds }) });
+    const { jobId } = await api('/api/process', {
+      method: 'POST',
+      body: JSON.stringify({ fileIds, quality }),
+    });
     state.jobId = jobId;
     pollJob();
   } catch (err) {
-    banner(`处理失败：${err.message}`, 'error');
+    state.processToast.update(`处理失败：${err.message}`, 'error');
+    state.processToast = null;
     $('process-btn').disabled = false;
   }
 }
@@ -237,14 +300,30 @@ function pollJob() {
         clearInterval(state.polling);
         state.polling = null;
         $('progress').hidden = true;
-        const failed = job.items.filter((i) => i.state === 'failed');
-        if (failed.length) {
-          banner(`${failed.length} 张处理失败，详情见下方卡片。其余照片可以正常发布。`, 'error');
+
+        const failed = job.items.filter((i) => i.state === 'failed').length;
+        const ready = job.items.filter((i) => i.state === 'ready').length;
+        if (state.processToast) {
+          if (failed) {
+            state.processToast.update(
+              `${failed} 张处理失败，详情见下方卡片。其余 ${ready} 张可以正常发布。`,
+              'error',
+            );
+          } else {
+            state.processToast.update(`${ready} 张处理完成，检查后即可发布。`, 'ok');
+          }
+          state.processToast = null;
         }
       }
     } catch (err) {
       clearInterval(state.polling);
-      banner(`无法获取处理进度：${err.message}`, 'error');
+      state.polling = null;
+      if (state.processToast) {
+        state.processToast.update(`无法获取处理进度：${err.message}`, 'error');
+        state.processToast = null;
+      } else {
+        toast(`无法获取处理进度：${err.message}`, 'error');
+      }
     }
   }, 600);
 }
@@ -262,6 +341,9 @@ function applyJob(job) {
   const done = job.items.filter((i) => i.state === 'ready' || i.state === 'failed').length;
   $('progress-fill').style.width = `${(done / job.items.length) * 100}%`;
   $('progress-label').textContent = `${done} / ${job.items.length}`;
+  if (state.processToast && job.state === 'running') {
+    state.processToast.update(`正在处理 ${done} / ${job.items.length} 张…`, 'progress');
+  }
 
   renderReview();
 }
@@ -426,7 +508,7 @@ async function rotate(entry, degrees) {
     state.rotations.set(entry.fileId, Date.now());
   } catch (err) {
     entry.state = previous;
-    banner(`旋转失败：${err.message}`, 'error');
+    toast(`旋转失败：${err.message}`, 'error');
   }
   renderReview();
 }
@@ -445,7 +527,7 @@ async function publish() {
   }
 
   $('publish-btn').disabled = true;
-  banner('正在写入相册并推送到 GitHub…');
+  const t = toast('正在写入相册并推送到 GitHub…', 'progress');
 
   try {
     const result = await api('/api/publish', {
@@ -475,22 +557,21 @@ async function publish() {
     renderReview();
     await refresh();
 
-    const pushed = result.git?.pushed;
-    banner(
-      pushed
+    t.update(
+      result.git?.pushed
         ? `已发布 ${result.added} 张到「${result.album.title}」。GitHub Actions 正在构建，大约一两分钟后网站更新。`
         : `已在本地提交 ${result.added} 张到「${result.album.title}」，但没有推送（还没配置远端）。`,
       'ok',
     );
 
     if (result.budget.overBytes > 0) {
-      banner(
+      toast(
         `已发布，但空间超了 ${fmtBytes(result.budget.overBytes)}。GitHub Pages 站点上限是 1GB，请到「管理」里删掉一些旧相册。`,
         'error',
       );
     }
   } catch (err) {
-    banner(`发布失败：${err.message}`, 'error');
+    t.update(`发布失败：${err.message}`, 'error');
     $('publish-btn').disabled = false;
   }
 }
@@ -576,24 +657,29 @@ async function deleteSelectedAlbums() {
   if (!confirm(`确定删除「${titles}」？照片会从网站和仓库里移除，无法恢复。`)) return;
 
   $('delete-albums-btn').disabled = true;
-  banner('正在删除并推送…');
+  const t = toast('正在删除并推送…', 'progress');
   try {
     const result = await api('/api/albums/delete', { method: 'POST', body: JSON.stringify({ ids }) });
     await refresh();
-    banner(`已删除 ${result.removed} 张照片，现在用了 ${fmtBytes(result.budget.usedBytes)}。`, 'ok');
+    t.update(
+      result.git?.pushed
+        ? `已删除 ${result.removed} 张照片，现在用了 ${fmtBytes(result.budget.usedBytes)}。网站一两分钟后更新。`
+        : `已在本地删除 ${result.removed} 张照片，但没有推送（还没配置远端）。`,
+      'ok',
+    );
   } catch (err) {
-    banner(`删除失败：${err.message}`, 'error');
+    t.update(`删除失败：${err.message}`, 'error');
   }
 }
 
 async function reclaim() {
   $('reclaim-btn').disabled = true;
-  banner('正在回收 git 空间…');
+  const t = toast('正在回收 git 空间…', 'progress');
   try {
     const r = await api('/api/reclaim', { method: 'POST' });
-    banner(`回收完成，释放了 ${fmtBytes(r.freed)}，本地仓库现在 ${fmtBytes(r.after)}。`, 'ok');
+    t.update(`回收完成，释放了 ${fmtBytes(r.freed)}，本地仓库现在 ${fmtBytes(r.after)}。`, 'ok');
   } catch (err) {
-    banner(`回收失败：${err.message}`, 'error');
+    t.update(`回收失败：${err.message}`, 'error');
   }
   $('reclaim-btn').disabled = false;
 }
@@ -607,6 +693,7 @@ async function saveSettings() {
   if ($('set-passcode').value) body.passcode = $('set-passcode').value;
 
   $('save-settings-btn').disabled = true;
+  const t = toast('正在保存并推送…', 'progress');
   try {
     const r = await api('/api/settings', { method: 'POST', body: JSON.stringify(body) });
     const changedPasscode = Boolean(body.passcode);
@@ -614,11 +701,11 @@ async function saveSettings() {
     await refresh();
 
     if (!r.git?.changed) {
-      banner('设置没有变化。', 'ok');
+      t.update('设置没有变化。', 'ok');
     } else {
       // Everyone's saved unlock is the old hash, so changing the passcode signs all of them out.
       const note = changedPasscode ? '家人下次打开需要重新输入口令。' : '';
-      banner(
+      t.update(
         r.git.pushed
           ? `设置已推送，一两分钟后网站生效。${note}`
           : `设置已提交，但没有远程仓库可推送，下次发布时一起上传。${note}`,
@@ -626,7 +713,7 @@ async function saveSettings() {
       );
     }
   } catch (err) {
-    banner(`保存失败：${err.message}`, 'error');
+    t.update(`保存失败：${err.message}`, 'error');
   }
   $('save-settings-btn').disabled = false;
 }
@@ -678,8 +765,25 @@ $('tab-manage-btn').addEventListener('click', () => {
   if (!panel.hidden) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
+// Measured on a 61MP Sony HIF at 2560px: 225 KB, 291 KB and 390 KB per photo.
+const QUALITY_HINTS = {
+  standard: '体积最小，适合日常分享。',
+  high: '比标准大约 29%，细节更扎实。',
+  max: '比标准大约 73%，放大看也经得起。',
+};
+
+function renderQualityHint() {
+  const value = document.querySelector('input[name="quality"]:checked')?.value || 'standard';
+  $('quality-hint').textContent = QUALITY_HINTS[value];
+}
+
+for (const input of document.querySelectorAll('input[name="quality"]')) {
+  input.addEventListener('change', renderQualityHint);
+}
+renderQualityHint();
+
 $('delete-albums-btn').addEventListener('click', deleteSelectedAlbums);
 $('reclaim-btn').addEventListener('click', reclaim);
 $('save-settings-btn').addEventListener('click', saveSettings);
 
-refresh().catch((err) => banner(`无法连接本地服务：${err.message}`, 'error'));
+refresh().catch((err) => toast(`无法连接本地服务：${err.message}`, 'error'));

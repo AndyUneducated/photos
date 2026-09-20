@@ -23,7 +23,9 @@
   </div>
 </header>
 
-<div id="banner" class="banner" hidden></div>
+<!-- Toasts, not a single banner line: a message about a failed photo must not be silently
+     overwritten by the next status update, and it has to be noticeable without scrolling up. -->
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <main>
   <!-- ------------------------------------------------------------ upload -->
@@ -40,6 +42,16 @@
     </label>
 
     <ul class="filelist" id="filelist"></ul>
+
+    <div class="quality" id="quality" role="radiogroup" aria-label="这批照片的画质">
+      <span class="quality__title">画质</span>
+      <div class="segmented">
+        <label class="seg"><input type="radio" name="quality" value="standard" checked><span>标准</span></label>
+        <label class="seg"><input type="radio" name="quality" value="high"><span>高</span></label>
+        <label class="seg"><input type="radio" name="quality" value="max"><span>最高</span></label>
+      </div>
+      <span class="hint" id="quality-hint"></span>
+    </div>
 
     <div class="row" id="upload-actions" hidden>
       <button class="primary-btn" id="process-btn">开始处理</button>

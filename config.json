@@ -8,7 +8,20 @@
   "concurrency": null,
   "webMaxEdge": 2560,
   "thumbMaxEdge": 640,
-  "webQuality": 58,
-  "thumbQuality": 50,
+  "_quality": "上传时按批次选择。数值是 AVIF quality，实测（2560px 索尼样张）相对 standard 的总体积：high +29%，max +73%",
+  "quality": {
+    "standard": {
+      "web": 58,
+      "thumb": 50
+    },
+    "high": {
+      "web": 66,
+      "thumb": 55
+    },
+    "max": {
+      "web": 75,
+      "thumb": 60
+    }
+  },
   "reverseGeocode": true
 }
