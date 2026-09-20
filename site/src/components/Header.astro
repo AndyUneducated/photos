@@ -157,7 +157,15 @@ const showFilter = albums.length > 1;
   .chip__count {
     font-size: 11px;
     font-variant-numeric: tabular-nums;
-    color: color-mix(in oklab, currentcolor 55%, transparent);
+    /* Interpolating between two opaque tokens rather than fading currentcolor into
+       `transparent`. The old mix followed the label colour, so on the selected chip — where the
+       label flips to the near-black background token — the count faded into the light fill and
+       disappeared. These two stay near 5:1 against whichever fill is behind them. */
+    color: color-mix(in oklab, var(--fg) 52%, var(--bg));
+  }
+
+  .chip.is-active .chip__count {
+    color: color-mix(in oklab, var(--bg) 62%, var(--fg));
   }
 
   /* Wide enough: brand and filter share one line so the header stays ~54px. */
