@@ -35,7 +35,32 @@ const checks = [
   ['photo meta island', /id="photo-meta"/.test(html)],
   ['footer', /最新/.test(html)],
   ['no astro:assets import', !/_image\?href/.test(html)],
+  ...metaIslandChecks(),
 ];
+
+/**
+ * The metadata island is JSON inside a <script> tag, so any `</script>` in a caption, lens name
+ * or place name would end the tag early and spill the rest into the document as markup. The
+ * fixtures deliberately include such a caption; these assert it survives as data.
+ */
+function metaIslandChecks() {
+  const island = html.match(/<script type="application\/json" id="photo-meta"[^>]*>([\s\S]*?)<\/script>/);
+  if (!island) return [['meta island readable', false, 'not found']];
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(island[1]);
+  } catch (err) {
+    return [['meta island parses as JSON', false, err.message]];
+  }
+
+  const captions = Object.values(parsed).map((e) => e.caption || '');
+  return [
+    ['meta island parses as JSON', true, `${Object.keys(parsed).length} photos`],
+    ['no raw </script> in island', !/<\/script/i.test(island[1])],
+    ['hostile caption survived as text', captions.some((c) => c.includes('</script>'))],
+  ];
+}
 
 let failed = 0;
 for (const [name, ok, extra] of checks) {

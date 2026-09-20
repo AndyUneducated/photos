@@ -62,7 +62,10 @@ const ALBUMS = [
     photos: [
       { shape: 'pano', at: '2026-09-19T21:48:12', caption: '外滩，江面上的最后一班船。', exif: sony('FE 24-70mm F2.8 GM II', 2.8, '1/60', 3200, 24), loc: [31.2397, 121.4905, '外滩, 黄浦区, 上海市'] },
       { shape: 'portrait', at: '2026-09-19T21:31:05', caption: '', exif: sony('FE 35mm F1.4 GM', 1.4, '1/125', 1600, 35), loc: [31.2339, 121.4753, '南京东路, 黄浦区, 上海市'] },
-      { shape: 'landscape', at: '2026-09-19T21:02:44', caption: '霓虹灯下的街角。', exif: sony('FE 35mm F1.4 GM', 2, '1/80', 2500, 35) },
+      // Edge case: text that would close the metadata island's <script> tag if left unescaped,
+      // turning the rest of the JSON into markup. Captions are ours, but lens names come out of
+      // the file and place names come back from Nominatim, so the escaping has to hold.
+      { shape: 'landscape', at: '2026-09-19T21:02:44', caption: '霓虹灯下的街角。</script><img src=x onerror="alert(1)">', exif: sony('FE 35mm F1.4 GM', 2, '1/80', 2500, 35) },
       { shape: 'portrait', at: '2026-09-19T20:47:19', caption: '', exif: iphone(1.78, '1/40', 1250, 24), loc: [31.2304, 121.4737] },
       { shape: 'landscape', at: '2026-09-19T20:22:58', caption: '', exif: sony('FE 70-200mm F2.8 GM OSS II', 2.8, '1/200', 6400, 135) },
       { shape: 'square', at: '2026-09-19T20:03:31', caption: '路边摊的蒸汽。', exif: iphone(1.78, '1/60', 800, 24) },

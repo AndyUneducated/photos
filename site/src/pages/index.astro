@@ -28,6 +28,12 @@ for (const photo of photos) {
   }
   photoMeta[photo.id] = entry;
 }
+
+// A literal `</script>` anywhere in here would close the tag early and the rest of the JSON
+// would be parsed as markup. Escaping `<` keeps it inert and JSON.parse reads it back the same.
+// Worth doing even though captions are ours: lens names come out of the file and place names
+// come back from Nominatim.
+const photoMetaJson = JSON.stringify(photoMeta).replace(/</g, '\\u003c');
 ---
 
 <Layout title={site.title} passcodeHash={site.passcodeHash}>
@@ -46,7 +52,7 @@ for (const photo of photos) {
 
   {site.passcodeHash && <Gate title={site.title} tagline={site.tagline} passcodeHash={site.passcodeHash} />}
 
-  <script type="application/json" id="photo-meta" set:html={JSON.stringify(photoMeta)} is:inline />
+  <script type="application/json" id="photo-meta" set:html={photoMetaJson} is:inline />
 
   <script>
     import '../scripts/main.js';
