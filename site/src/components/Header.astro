@@ -13,7 +13,7 @@ interface Props {
 }
 
 const { title, tagline, albums, total } = Astro.props;
-// With one album the chips would just be "全部" and a duplicate of it.
+// With one album the chips would just be "All" and a duplicate of it.
 const showFilter = albums.length > 1;
 ---
 
@@ -26,10 +26,10 @@ const showFilter = albums.length > 1;
 
     {
       showFilter && (
-        <nav class="filter" id="filter" aria-label="相册筛选">
+        <nav class="filter" id="filter" aria-label="Album filter">
           <div class="filter__track" role="group">
             <button class="chip is-active" type="button" data-album="all" aria-pressed="true">
-              <span class="chip__label">全部</span>
+              <span class="chip__label">All</span>
               <span class="chip__count">{total}</span>
             </button>
             {albums.map((album) => (

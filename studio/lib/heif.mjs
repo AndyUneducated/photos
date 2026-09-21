@@ -323,14 +323,14 @@ export async function decodeHeif(buf) {
   const decoder = new libheif.HeifDecoder();
   const images = decoder.decode(buf);
   if (!images || images.length === 0) {
-    throw new Error('HEIF 文件里没有找到图像（文件可能损坏或是不支持的编码）');
+    throw new Error('No image was found in the HEIF file (it may be damaged or use an unsupported encoding)');
   }
 
   // A HEIC can hold a burst or a Live Photo sequence; the first image is the primary one.
   const image = images[0];
   const width = image.get_width();
   const height = image.get_height();
-  if (!width || !height) throw new Error('HEIF 图像尺寸无效');
+  if (!width || !height) throw new Error('The HEIF image has invalid dimensions');
 
   // libheif-js mirrors the browser ImageData shape, so we hand it a compatible object.
   const data = Buffer.allocUnsafe(width * height * 4);
@@ -338,7 +338,7 @@ export async function decodeHeif(buf) {
 
   await new Promise((resolve, reject) => {
     image.display(imageData, (result) => {
-      if (!result) reject(new Error('libheif 解码失败'));
+      if (!result) reject(new Error('libheif failed to decode the image'));
       else resolve();
     });
   });

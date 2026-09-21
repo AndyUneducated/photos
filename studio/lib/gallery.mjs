@@ -41,7 +41,7 @@ export async function loadManifest(config) {
     const raw = await readFile(MANIFEST_PATH, 'utf8');
     const manifest = JSON.parse(raw);
     if (manifest.version !== MANIFEST_VERSION) {
-      throw new Error(`manifest.json 版本是 ${manifest.version}，这个版本的工具只认 ${MANIFEST_VERSION}`);
+      throw new Error(`manifest.json is version ${manifest.version}, but this build of the tool only understands ${MANIFEST_VERSION}`);
     }
     // Site-level settings live in config.json and are re-stamped on every write, so that editing
     // config.json is enough to change the title or passcode.

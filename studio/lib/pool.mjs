@@ -110,7 +110,7 @@ export async function runBatch(tasks, { opts, concurrency, onEvent = () => {}, i
           worker.terminate().catch(() => {});
 
           if (workers.length === 0 && queue.length > 0) {
-            finish(new Error('所有处理线程都崩溃了，可能是内存不足。可以在 config.json 里把 concurrency 设为 1 再试。'));
+            finish(new Error('Every processing thread crashed, most likely from running out of memory. Try setting concurrency to 1 in config.json and running it again.'));
           } else if (active === 0 && queue.length === 0) {
             finish();
           } else {

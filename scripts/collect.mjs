@@ -20,7 +20,7 @@ const PAGES_LIMIT_BYTES = 1024 * 1024 * 1024;
 const albums = await readdir(ALBUMS_DIR, { withFileTypes: true }).catch(() => null);
 
 if (!albums) {
-  console.log('collect: 没有 gallery/albums 目录，跳过（构建出来的是空相册站）。');
+  console.log('collect: no gallery/albums directory, skipping (the build will be an empty gallery site).');
 } else {
   await mkdir(DEST_DIR, { recursive: true });
 
@@ -31,23 +31,23 @@ if (!albums) {
     copied++;
   }
 
-  console.log(`collect: 已复制 ${copied} 个相册到 dist/p/`);
+  console.log(`collect: copied ${copied} album(s) into dist/p/`);
 }
 
 const total = await dirSize(DIST_DIR);
-console.log(`collect: dist/ 共 ${(total / 1024 / 1024).toFixed(1)} MB`);
+console.log(`collect: dist/ is ${(total / 1024 / 1024).toFixed(1)} MB in total`);
 
 if (total > PAGES_LIMIT_BYTES) {
   console.error(
-    `collect: dist/ 超过了 GitHub Pages 的 1GB 上限（${(total / 1024 / 1024).toFixed(1)} MB）。` +
-      ' 部署会被拒绝，请先在相册工作台里删掉一些旧相册。',
+    `collect: dist/ is over the 1GB GitHub Pages limit (${(total / 1024 / 1024).toFixed(1)} MB).` +
+      ' The deploy will be rejected; delete some old albums in the photo studio first.',
   );
   process.exit(1);
 }
 
 // A soft warning well before the hard limit, so there is time to act.
 if (total > PAGES_LIMIT_BYTES * 0.9) {
-  console.warn('collect: 已经用掉 90% 以上的 Pages 配额，建议清理旧相册。');
+  console.warn('collect: more than 90% of the Pages quota is used; consider clearing out old albums.');
 }
 
 await verifyManifest();
@@ -77,12 +77,12 @@ async function verifyManifest() {
   }
 
   if (missing.length) {
-    console.error(`collect: manifest 里有 ${missing.length} 个文件在 dist/ 里不存在：`);
+    console.error(`collect: ${missing.length} file(s) listed in the manifest are missing from dist/:`);
     for (const path of missing.slice(0, 10)) console.error(`  - ${path}`);
     process.exit(1);
   }
 
-  console.log(`collect: manifest 校验通过（${manifest.photos?.length ?? 0} 张照片）`);
+  console.log(`collect: manifest verified (${manifest.photos?.length ?? 0} photos)`);
 }
 
 async function dirSize(dir) {

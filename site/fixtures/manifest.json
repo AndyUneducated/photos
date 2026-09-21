@@ -3,37 +3,37 @@
   "updatedAt": "2026-09-19T21:40:11.000Z",
   "site": {
     "title": "Anning Photos",
-    "tagline": "家庭相册",
+    "tagline": "Family album",
     "passcodeHash": "d34a569ab7aaa54dacd715ae64953455d86b768846cd0085ef4e9e7471489b7b"
   },
   "budgetBytes": 838860800,
-  "usedBytes": 490209,
+  "usedBytes": 700887,
   "albums": [
     {
       "id": "2026-09-19-shanghai-night",
-      "title": "上海夜色",
+      "title": "Shanghai After Dark",
       "date": "2026-09-19",
       "showLocation": true,
       "photoCount": 10,
-      "bytes": 206448,
+      "bytes": 284864,
       "coverPhotoId": "29de1b9eedaf"
     },
     {
       "id": "2026-04-11-kyoto-walk",
-      "title": "京都散策",
+      "title": "A Walk Through Kyoto",
       "date": "2026-04-11",
       "showLocation": false,
       "photoCount": 8,
-      "bytes": 154404,
+      "bytes": 230443,
       "coverPhotoId": "5878a7f71e01"
     },
     {
       "id": "2026-01-03-home-weekend",
-      "title": "周末在家",
+      "title": "A Weekend at Home",
       "date": "2026-01-03",
       "showLocation": false,
       "photoCount": 6,
-      "bytes": 129357
+      "bytes": 185580
     }
   ],
   "photos": [
@@ -47,9 +47,9 @@
       "tw": 640,
       "th": 360,
       "lqip": "data:image/webp;base64,UklGRkIAAABXRUJQVlA4IDYAAADwAQCdASoQAAkAA4BaJbACdAD5Or+3RgAA/u9L2TM6bKrabK7G5fg4/jI5xzDE8p84iQkgAAA=",
-      "bytes": 17482,
+      "bytes": 24625,
       "takenAt": "2026-09-19T21:48:12",
-      "caption": "外滩，江面上的最后一班船。",
+      "caption": "The Bund, the last boat of the night on the river.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -62,7 +62,7 @@
       "location": {
         "lat": 31.2397,
         "lon": 121.4905,
-        "label": "外滩, 黄浦区, 上海市"
+        "label": "The Bund, Huangpu District, Shanghai"
       }
     },
     {
@@ -75,7 +75,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOAAAABACAJ0BKgsAEAADgFolsAJ0AQ8Op6MPlNAA/vFlSubR2aR2kMMO8zLj46+VIbi1Z3ITxs8JrEAA",
-      "bytes": 21446,
+      "bytes": 29239,
       "takenAt": "2026-09-19T21:31:05",
       "caption": "",
       "exif": {
@@ -90,7 +90,7 @@
       "location": {
         "lat": 31.2339,
         "lon": 121.4753,
-        "label": "南京东路, 黄浦区, 上海市"
+        "label": "East Nanjing Road, Huangpu District, Shanghai"
       }
     },
     {
@@ -103,9 +103,9 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4ID4AAADwAQCdASoQAAsAA4BaJbACdAEO5ICmlPgA/vENVBSzaY53xJvVSer8Fbz+b5Ot+X+S88RSv6l+/zibNoAAAA==",
-      "bytes": 20539,
+      "bytes": 28701,
       "takenAt": "2026-09-19T21:02:44",
-      "caption": "霓虹灯下的街角。</script><img src=x onerror=\"alert(1)\">",
+      "caption": "A street corner under the neon.</script><img src=x onerror=\"alert(1)\">",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -126,7 +126,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOAAAANABAJ0BKgsAEAADgFolsAJ0AR9sP4hgAP7sQxkdpkRuohH+M95nbM74u2fMTycQOzl+2cyagAAA",
-      "bytes": 17993,
+      "bytes": 24749,
       "takenAt": "2026-09-19T20:47:19",
       "caption": "",
       "exif": {
@@ -153,7 +153,7 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4ID4AAADwAQCdASoQAAsAA4BaJbACdADbpdVAPoAA/rxzWUoZPdUjJ5o5PF+Z9O1WqnVm7mM/uANpn1jcsIfKhQgAAA==",
-      "bytes": 19173,
+      "bytes": 25701,
       "takenAt": "2026-09-19T20:22:58",
       "caption": "",
       "exif": {
@@ -176,9 +176,9 @@
       "tw": 640,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRkwAAABXRUJQVlA4IEAAAADQAQCdASoQABAAA4BaJbACdACqDII9aAD+P1JMX04x9tVzJ2ZFvbPprkOFEJ3D1Ajx0XsJ8qT+gMXj24keAAAA",
-      "bytes": 21304,
+      "bytes": 29766,
       "takenAt": "2026-09-19T20:03:31",
-      "caption": "路边摊的蒸汽。",
+      "caption": "Steam rising off a street food stall.",
       "exif": {
         "make": "Apple",
         "model": "iPhone 15 Pro",
@@ -199,7 +199,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOAAAAPABAJ0BKgsAEAADgFolsAJ0AN0Fqci2ZAD9mS9XVZviZgcMD4ssteWkeotNJaKt/YqEJEXkvIgA",
-      "bytes": 20813,
+      "bytes": 28375,
       "takenAt": "2026-09-19T19:41:07",
       "caption": "",
       "exif": {
@@ -222,9 +222,9 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4ID4AAADwAQCdASoQAAsAA4BaJbACdADv2kJMV4AA/jxkZlFYg4K8r2lMDTHalH9YTB/8iAfdX4zfhW/bHemMLZAAAA==",
-      "bytes": 22710,
+      "bytes": 31869,
       "takenAt": "2026-09-19T19:18:52",
-      "caption": "天还没全黑。",
+      "caption": "Not quite dark yet.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -245,9 +245,9 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4IDwAAAAQAgCdASoQAAsAA4BaJbACdADwLRN+VuYAAP6/YD0J/8NJ0a4nzRyW44ZAL6yMkGeY1hpPGP8ubvZFwAA=",
-      "bytes": 23563,
+      "bytes": 31986,
       "takenAt": "2026-09-19T18:55:04",
-      "caption": "扫描的老照片，没有元数据。",
+      "caption": "A scan of an old print, no metadata on it.",
       "exif": {}
     },
     {
@@ -260,7 +260,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOgAAANABAJ0BKgsAEAADgFolsAJ0ANzORzCkAP7qIMoOxNNGFgIGAnOxwwJfAUTh2bYn5yo/xjU5rIigAAA=",
-      "bytes": 21425,
+      "bytes": 29853,
       "takenAt": "2026-09-19T18:30:20",
       "caption": "",
       "exif": {
@@ -279,9 +279,9 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOgAAABACAJ0BKgsAEAADgFolAF2AIFgd75XL3OAA/sJ+E/JS58/48XAgLPYrbjMz23J4SK9NSZXfPifAAAA=",
-      "bytes": 19348,
+      "bytes": 29005,
       "takenAt": "2026-04-11T16:42:11",
-      "caption": "哲学之道，樱花刚开。",
+      "caption": "The Path of Philosophy, cherry blossoms just opening.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -302,7 +302,7 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4IDwAAACwAQCdASoQAAsAA4BaJYgAAel3M9JAAP7vZ9+CfF468N8z6/AZtcvfEjx1HrnseTVHz3n9d4WPkCjAAAA=",
-      "bytes": 21192,
+      "bytes": 30242,
       "takenAt": "2026-04-11T15:58:47",
       "caption": "",
       "exif": {
@@ -325,9 +325,9 @@
       "tw": 640,
       "th": 360,
       "lqip": "data:image/webp;base64,UklGRkYAAABXRUJQVlA4IDoAAADQAQCdASoQAAkAA4BaJQBdgCGOOMvsAAD+0PzgGTotxtOxWX7tguMgNBPEwPq7JrVN5cUF8AgWwAAA",
-      "bytes": 17251,
+      "bytes": 26587,
       "takenAt": "2026-04-11T15:12:03",
-      "caption": "鸭川，风很大。",
+      "caption": "The Kamo River, very windy.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -348,7 +348,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOAAAABACAJ0BKgsAEAADgFolAF2AIdzrHG4KhEAA/id01lL62D/BmdVhJu/vqCZpJHTUIe99ZR3NVfAA",
-      "bytes": 17578,
+      "bytes": 26323,
       "takenAt": "2026-04-11T14:33:29",
       "caption": "",
       "exif": {
@@ -371,9 +371,9 @@
       "tw": 640,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRkgAAABXRUJQVlA4IDwAAADQAQCdASoQABAAA4BaJZAC7ACmDj1GIAD+BaoL9NIU+SIOotKXT0dTY2Vf3qVlNokyWs1J2ldzXwgNgAA=",
-      "bytes": 19108,
+      "bytes": 28041,
       "takenAt": "2026-04-11T13:47:55",
-      "caption": "一碗荞麦面。",
+      "caption": "A bowl of soba.",
       "exif": {
         "make": "Apple",
         "model": "iPhone 15 Pro",
@@ -394,7 +394,7 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4IDoAAACwAQCdASoQAAsAA4BaJQBOgBgMu2YAAP7X+SF4npW5ySAAZAvW7BL+V9NJ+2EEvY+H9t3N1iHXgAAA",
-      "bytes": 18890,
+      "bytes": 28465,
       "takenAt": "2026-04-11T12:21:16",
       "caption": "",
       "exif": {
@@ -417,7 +417,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggPAAAAPABAJ0BKgsAEAADgFoliALDsKMZAP2GGAD+4m3tgyhiHHx8Bq3w2hRVJvDgd6bjCD/e0UyqKnD8OwAAAA==",
-      "bytes": 20075,
+      "bytes": 28968,
       "takenAt": "2026-04-11T11:05:41",
       "caption": "",
       "exif": {
@@ -440,9 +440,9 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRooAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4IDYAAADQAQCdASoQAAsAA4BaJYgAAxfzz1lsAAD+1+HIQLJVvcRG1NPaN4SODtxjGCTHrrP/oYx4+AA=",
-      "bytes": 20962,
+      "bytes": 32812,
       "takenAt": "2026-04-11T09:52:08",
-      "caption": "清晨的巷子。",
+      "caption": "A back lane early in the morning.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -463,9 +463,9 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpQAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4IEAAAACwAQCdASoQAAsAA4BaJZgCdADE/XYAAP7qSsih7JkoWwICM5beXOeuU+qV3IVzQpwymL26ryb8CJ2pDMrawKAA",
-      "bytes": 21388,
+      "bytes": 31041,
       "takenAt": "2026-01-03T16:11:02",
-      "caption": "午后的光。",
+      "caption": "Afternoon light.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -486,7 +486,7 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRpoAAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggRAAAANABAJ0BKgsAEAADgFolqAJ0AR87bQAAAP7vjUlB9gfAolHU90XQVLOnBs8/QhnFrIS1sijluxc+jhJGjM8KW3MrAAAA",
-      "bytes": 23146,
+      "bytes": 32408,
       "takenAt": "2026-01-03T15:40:38",
       "caption": "",
       "exif": {
@@ -509,7 +509,7 @@
       "tw": 640,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRkwAAABXRUJQVlA4IEAAAADQAQCdASoQABAAA4BaJZACdAEOwyhWoAD+72dqXTnZhsqZsO1iLKzQaMoFGvPXuA+ir2F1k4ewR5CamUF6H1YA",
-      "bytes": 23388,
+      "bytes": 32903,
       "takenAt": "2026-01-03T14:22:19",
       "caption": "",
       "exif": {
@@ -532,9 +532,9 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRpYAAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggQAAAABACAJ0BKgsAEAADgFoloAJ0APRNfHWnAwAA/qNrDt8UwpUMcTUMTK3dGKI+0++okw9h+EYyrojqrqPqTmh6gAA=",
-      "bytes": 19535,
+      "bytes": 27697,
       "takenAt": "2026-01-03T12:58:44",
-      "caption": "她自己搭的积木塔。",
+      "caption": "The block tower she built all by herself.",
       "exif": {
         "make": "SONY",
         "model": "ILCE-7RM5",
@@ -555,7 +555,7 @@
       "tw": 640,
       "th": 427,
       "lqip": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4WAoAAAAQAAAADwAACgAAQUxQSC4AAAABuYzof0BR20ZSDxTLn9v+lkE7w2DfEROQd1WNMRaQGJnZAb95BoxRsYCITMwAVlA4ID4AAADQAQCdASoQAAsAA4BaJagCdADcBfREeAD82MZxr+Ka+d0iSwfyzat+/yrCEZBBjO69qlWDusi+PBJrSdlAAA==",
-      "bytes": 20394,
+      "bytes": 28843,
       "takenAt": "2026-01-03T11:14:27",
       "caption": "",
       "exif": {
@@ -578,9 +578,9 @@
       "tw": 427,
       "th": 640,
       "lqip": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4WAoAAAAQAAAACgAADwAAQUxQSC8AAAABUNRIkuJf4u4eM4i417WGiJiA8f6jgppACiA44BUoEiAKNAKrwHcQJygbNLIuuABWUDggOgAAAPABAJ0BKgsAEAADgFoloAJ0AN0cEiM+gAD+yO3Bv1uXqHdJVG9Aot5JkdGujD7dIbaluouTqawAAAA=",
-      "bytes": 21506,
+      "bytes": 32688,
       "takenAt": "2026-01-03T10:02:55",
-      "caption": "早饭。",
+      "caption": "Breakfast.",
       "exif": {
         "make": "Apple",
         "model": "iPhone 15 Pro",

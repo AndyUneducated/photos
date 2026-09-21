@@ -45,7 +45,7 @@ if (process.env.PHOTOS_EXIF_TZ_CHILD) {
 
 const files = await sampleFiles();
 if (files.length === 0) {
-  console.log(`${SAMPLES}/ 里没有图片，跳过。放几张相机原片进去再跑一次。`);
+  console.log(`No images in ${SAMPLES}/, skipped. Drop a few camera originals in there and run it again.`);
   process.exit(0);
 }
 
@@ -61,9 +61,9 @@ for (const name of files) {
   const block = isHeif(buf) ? readExifBlock(buf) : null;
 
   console.log(`\n=== ${name} ===`);
-  console.log(`  Exif 块   : ${block ? `${block.length} 字节` : '(无)'}`);
+  console.log(`  Exif block: ${block ? `${block.length} bytes` : '(none)'}`);
   console.log(`  EXIF      : ${JSON.stringify(meta.exif)}`);
-  console.log(`  拍摄时间  : ${meta.takenAt ?? '(无)'}`);
+  console.log(`  taken at  : ${meta.takenAt ?? '(none)'}`);
 
   if (isHeif(buf)) {
     // Deliberately dumber than the code under test: if the item list near the head of the file
@@ -71,11 +71,11 @@ for (const name of files) {
     // would quietly pass the moment extraction regressed, since every later assertion is
     // conditional on having a block.
     const declaresExif = buf.subarray(0, 64 * 1024).includes(Buffer.from('Exif', 'latin1'));
-    if (declaresExif) check('文件声明了 Exif 条目，就必须取得到', Boolean(block));
+    if (declaresExif) check('file declares an Exif item, so it must be extractable', Boolean(block));
 
     if (block) {
       const magic = block.toString('latin1', 0, 4);
-      check('Exif 块是 TIFF 结构', magic === 'II*\0' || magic === 'MM\0*');
+      check('Exif block is a TIFF structure', magic === 'II*\0' || magic === 'MM\0*');
     }
   }
 
@@ -93,16 +93,16 @@ for (const name of files) {
       /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2}).*$/,
       '$1-$2-$3T$4:$5:$6'
     );
-    check(`拍摄时间与相机写的一致（${expected}）`, meta.takenAt === expected);
+    check(`taken-at matches what the camera wrote (${expected})`, meta.takenAt === expected);
   }
 
   if (literal && (literal.Make || literal.Model)) {
-    check('读到了相机型号', Boolean(meta.exif.make || meta.exif.model));
+    check('camera model was read', Boolean(meta.exif.make || meta.exif.model));
   }
 }
 
 // The whole point of reading the raw digits is that the answer cannot depend on this machine.
-console.log('\n=== 时区无关性 ===');
+console.log('\n=== timezone independence ===');
 const readUnder = (tz) => {
   const res = spawnSync(process.execPath, [process.argv[1]], {
     env: { ...process.env, TZ: tz, PHOTOS_EXIF_TZ_CHILD: '1' },
@@ -114,7 +114,7 @@ const here = readUnder('America/Los_Angeles');
 const away = readUnder('Asia/Tokyo');
 console.log(`  America/Los_Angeles: ${here}`);
 console.log(`  Asia/Tokyo         : ${away}`);
-check('换时区后拍摄时间不变', here === away && here.length > 0);
+check('taken-at is unchanged across timezones', here === away && here.length > 0);
 
-console.log(failures === 0 ? '\n全部通过。' : `\n${failures} 项失败。`);
+console.log(failures === 0 ? '\nAll passed.' : `\n${failures} failed.`);
 process.exit(failures ? 1 : 0);

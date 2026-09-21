@@ -52,7 +52,7 @@ export async function processPhoto(filePath, opts) {
 
   if (colourPlan.hdr) {
     notes.push(
-      `源文件是 HDR（${colourPlan.label}），已色调映射到 SDR。如果颜色不理想，建议相机里导出 SDR 版本。`,
+      `The source file is HDR (${colourPlan.label}) and has been tone mapped to SDR. If the colours do not look right, export an SDR version from the camera instead.`,
     );
   }
 
@@ -77,7 +77,7 @@ export async function processPhoto(filePath, opts) {
     .toBuffer({ resolveWithObject: true });
 
   const converted = convertToSrgb(web.data, colourPlan, web.info.channels);
-  if (converted) notes.push(`已从 ${colourPlan.label} 转换到 sRGB`);
+  if (converted) notes.push(`Converted from ${colourPlan.label} to sRGB`);
 
   const rgb = () =>
     sharp(web.data, {
@@ -122,7 +122,7 @@ async function openHeif(source, meta, notes) {
   const pipeline = sharp(data, { raw: { width, height, channels: 4 } });
 
   const autoRotate = applyHeifOrientation(pipeline, meta, width, height, notes);
-  if (autoRotate) notes.push(`按 EXIF Orientation ${meta.orientation} 旋转了 ${autoRotate}°`);
+  if (autoRotate) notes.push(`Rotated by ${autoRotate}° to follow EXIF Orientation ${meta.orientation}`);
 
   return { pipeline, colourPlan: planColourConversion(colour), autoRotate };
 }
@@ -146,7 +146,7 @@ function applyHeifOrientation(pipeline, meta, width, height, notes) {
 
   if (!SWAPS_AXES.has(orientation)) {
     notes.push(
-      `EXIF Orientation 为 ${orientation}，无法从尺寸判断解码器是否已处理，保持原样（如有需要请手动旋转）`,
+      `EXIF Orientation is ${orientation}, and the dimensions cannot tell us whether the decoder already applied it, so the photo was left as it is (rotate it by hand if you need to)`,
     );
     return 0;
   }
@@ -180,7 +180,7 @@ async function openWithSharp(source, notes) {
   // real ICC transform when we name an output profile, which is more accurate than our matrix.
   if (metadata.icc) {
     pipeline.withIccProfile('srgb');
-    notes.push('已按内嵌 ICC 配置文件转换到 sRGB');
+    notes.push('Converted to sRGB using the embedded ICC profile');
   }
 
   return {

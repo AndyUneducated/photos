@@ -1,5 +1,5 @@
 ---
-import { formatDateZh } from '../lib/format.js';
+import { formatDate } from '../lib/format.js';
 
 interface Props {
   count: number;
@@ -7,13 +7,13 @@ interface Props {
 }
 
 const { count, newestTakenAt } = Astro.props;
-const newest = formatDateZh(newestTakenAt);
+const newest = formatDate(newestTakenAt);
 ---
 
 <footer class="footer">
-  <span>{count} 张照片</span>
+  <span>{count} photos</span>
   {newest && <span class="footer__sep" aria-hidden="true">·</span>}
-  {newest && <span>最新 {newest}</span>}
+  {newest && <span>Newest {newest}</span>}
 </footer>
 
 <style>

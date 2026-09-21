@@ -10,7 +10,7 @@ const { title, passcodeHash } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -46,7 +46,7 @@ const { title, passcodeHash } = Astro.props;
   <body>
     <slot />
     <noscript>
-      <p class="noscript">这个相册需要 JavaScript 才能显示照片。</p>
+      <p class="noscript">This gallery needs JavaScript to show photos.</p>
     </noscript>
     <style>
       .noscript {

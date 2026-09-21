@@ -1,6 +1,6 @@
 /**
  * Reverse geocoding for the album-level "show location" opt-in, so a photo can be labelled
- * "黄浦区, 上海市" instead of a pair of raw coordinates.
+ * "Huangpu, Shanghai" instead of a pair of raw coordinates.
  *
  * Uses OpenStreetMap's Nominatim, which is free and needs no API key but asks for a real
  * User-Agent and at most one request per second. Results are cached on disk, so a given place is
@@ -44,7 +44,7 @@ function cacheKey(lat, lon) {
 /**
  * @returns {Promise<string|null>} a short human label, or null if it could not be determined
  */
-export async function reverseGeocode(lat, lon, { language = 'zh-CN' } = {}) {
+export async function reverseGeocode(lat, lon, { language = 'en' } = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   const store = await loadCache();

@@ -66,7 +66,7 @@ function toast(message, kind = 'info') {
   const close = document.createElement('button');
   close.className = 'toast__close';
   close.type = 'button';
-  close.setAttribute('aria-label', '关闭');
+  close.setAttribute('aria-label', 'Close');
   close.textContent = '\u00d7';
 
   el.append(icon, text, close);
@@ -126,17 +126,17 @@ async function refresh() {
   $('site-link').href = state.config.domain ? `https://${state.config.domain}/` : '#';
 
   if (!data.git.worktreeReady) {
-    const t = toast('还没初始化 gallery 分支，正在自动初始化…', 'progress');
+    const t = toast('The gallery branch is not set up yet. Setting it up…', 'progress');
     try {
       await api('/api/setup', { method: 'POST' });
-      t.update('gallery 分支初始化完成。', 'ok');
+      t.update('The gallery branch is ready.', 'ok');
     } catch (err) {
-      t.update(`初始化失败：${err.message}`, 'error');
+      t.update(`Setup failed: ${err.message}`, 'error');
     }
   } else if (!data.git.remote && !state.warnedNoRemote) {
     // refresh() runs after every operation; this one is a standing condition, not an event.
     state.warnedNoRemote = true;
-    toast('还没有配置 origin 远端，发布只会提交到本地仓库，网站不会更新。', 'info');
+    toast('No origin remote is configured. Publishing only commits to the local repository, and the site will not update.', 'info');
   }
 }
 
@@ -152,7 +152,7 @@ function renderSettings() {
   $('set-title').value = state.config.siteTitle ?? '';
   $('set-tagline').value = state.config.siteTagline ?? '';
   $('set-budget').value = Math.round(state.config.budgetBytes / 1024 / 1024);
-  $('set-passcode').placeholder = state.config.hasPasscode ? '已设置，留空 = 不改动' : '留空 = 不设口令';
+  $('set-passcode').placeholder = state.config.hasPasscode ? 'Set — leave blank to keep current' : 'Leave blank for no passcode';
 }
 
 // ------------------------------------------------------------------ uploading
@@ -213,9 +213,9 @@ function uploadOne(entry) {
       let payload = {};
       try { payload = JSON.parse(xhr.responseText); } catch { /* handled below */ }
       if (xhr.status >= 200 && xhr.status < 300 && payload.fileId) resolve(payload);
-      else reject(new Error(payload.error || `上传失败 (${xhr.status})`));
+      else reject(new Error(payload.error || `Upload failed (${xhr.status})`));
     };
-    xhr.onerror = () => reject(new Error('上传中断'));
+    xhr.onerror = () => reject(new Error('Upload interrupted'));
     xhr.send(entry.file);
   });
 }
@@ -240,9 +240,9 @@ function renderFileList() {
     st.className = 'state';
     st.textContent =
       entry.state === 'uploading' ? `${Math.round(entry.progress * 100)}%`
-      : entry.state === 'staged' ? '就绪'
-      : entry.state === 'failed' ? entry.error || '失败'
-      : '等待';
+      : entry.state === 'staged' ? 'Ready'
+      : entry.state === 'failed' ? entry.error || 'Failed'
+      : 'Waiting';
 
     li.append(name, size, st);
     ul.append(li);
@@ -259,7 +259,7 @@ function renderUploadActions() {
   $('upload-actions').hidden = state.files.size === 0;
   $('process-btn').disabled = staged.length === 0 || busy;
   $('upload-summary').textContent = staged.length
-    ? `${staged.length} 张就绪，共 ${fmtBytes(staged.reduce((s, f) => s + f.bytes, 0))}`
+    ? `${staged.length} ready, ${fmtBytes(staged.reduce((s, f) => s + f.bytes, 0))} in total`
     : '';
 }
 
@@ -274,7 +274,7 @@ async function startProcessing() {
   $('process-btn').disabled = true;
 
   const quality = document.querySelector('input[name="quality"]:checked')?.value || 'standard';
-  state.processToast = toast(`正在处理 0 / ${fileIds.length} 张…`, 'progress');
+  state.processToast = toast(`Processing 0 / ${fileIds.length} photos…`, 'progress');
 
   try {
     const { jobId } = await api('/api/process', {
@@ -284,7 +284,7 @@ async function startProcessing() {
     state.jobId = jobId;
     pollJob();
   } catch (err) {
-    state.processToast.update(`处理失败：${err.message}`, 'error');
+    state.processToast.update(`Processing failed: ${err.message}`, 'error');
     state.processToast = null;
     $('process-btn').disabled = false;
   }
@@ -306,11 +306,11 @@ function pollJob() {
         if (state.processToast) {
           if (failed) {
             state.processToast.update(
-              `${failed} 张处理失败，详情见下方卡片。其余 ${ready} 张可以正常发布。`,
+              `${failed} photos failed to process — see the cards below. The other ${ready} can still be published.`,
               'error',
             );
           } else {
-            state.processToast.update(`${ready} 张处理完成，检查后即可发布。`, 'ok');
+            state.processToast.update(`${ready} photos processed. Review them, then publish.`, 'ok');
           }
           state.processToast = null;
         }
@@ -319,10 +319,10 @@ function pollJob() {
       clearInterval(state.polling);
       state.polling = null;
       if (state.processToast) {
-        state.processToast.update(`无法获取处理进度：${err.message}`, 'error');
+        state.processToast.update(`Could not read processing progress: ${err.message}`, 'error');
         state.processToast = null;
       } else {
-        toast(`无法获取处理进度：${err.message}`, 'error');
+        toast(`Could not read processing progress: ${err.message}`, 'error');
       }
     }
   }, 600);
@@ -342,7 +342,7 @@ function applyJob(job) {
   $('progress-fill').style.width = `${(done / job.items.length) * 100}%`;
   $('progress-label').textContent = `${done} / ${job.items.length}`;
   if (state.processToast && job.state === 'running') {
-    state.processToast.update(`正在处理 ${done} / ${job.items.length} 张…`, 'progress');
+    state.processToast.update(`Processing ${done} / ${job.items.length} photos…`, 'progress');
   }
 
   renderReview();
@@ -372,8 +372,8 @@ function renderReview() {
   const ready = entries.filter((e) => e.state === 'ready' && state.selected.has(e.fileId));
   $('publish-btn').disabled = ready.length === 0;
   $('review-summary').textContent = ready.length
-    ? `将发布 ${ready.length} 张，占用约 ${fmtBytes(ready.reduce((s, e) => s + (e.photo?.bytes || 0), 0))}`
-    : '还没有可发布的照片';
+    ? `${ready.length} photos to publish, about ${fmtBytes(ready.reduce((s, e) => s + (e.photo?.bytes || 0), 0))}`
+    : 'No photos ready to publish yet';
 }
 
 function renderCard(entry) {
@@ -399,7 +399,7 @@ function renderCard(entry) {
       const btn = document.createElement('button');
       btn.className = 'icon-btn';
       btn.textContent = `${deg}°`;
-      btn.title = `顺时针旋转 ${deg}° 后重新处理`;
+      btn.title = `Rotate ${deg}° clockwise and process again`;
       btn.onclick = (e) => { e.preventDefault(); rotate(entry, deg); };
       tools.append(btn);
     }
@@ -408,10 +408,10 @@ function renderCard(entry) {
     const ph = document.createElement('div');
     ph.className = 'placeholder';
     ph.textContent =
-      entry.state === 'processing' ? '解码中…'
-      : entry.state === 'writing' ? '写入中…'
-      : entry.state === 'failed' ? '处理失败'
-      : '排队中…';
+      entry.state === 'processing' ? 'Decoding…'
+      : entry.state === 'writing' ? 'Writing…'
+      : entry.state === 'failed' ? 'Failed to process'
+      : 'Queued…';
     imageWrap.append(ph);
   }
 
@@ -451,7 +451,10 @@ function renderCard(entry) {
     body.append(meta);
 
     for (const note of entry.photo.notes || []) {
-      if (note.startsWith('已从') || note.startsWith('已按')) continue; // routine, not worth the noise
+      // Routine, not worth the noise. Matched against the wording in studio/lib/process.mjs, so
+      // the two have to be reworded together — the notes worth reading (HDR tone mapping, an
+      // orientation we could not resolve) are exactly the ones that do not start this way.
+      if (/^(Converted|Rotated) /.test(note)) continue;
       const el = document.createElement('div');
       el.className = 'card-note';
       el.textContent = note;
@@ -461,7 +464,7 @@ function renderCard(entry) {
     const caption = document.createElement('input');
     caption.type = 'text';
     caption.className = 'caption';
-    caption.placeholder = '说明（可选）';
+    caption.placeholder = 'Caption (optional)';
     caption.value = state.captions.get(entry.fileId) || '';
     caption.oninput = () => state.captions.set(entry.fileId, caption.value);
     body.append(caption);
@@ -474,7 +477,7 @@ function renderCard(entry) {
     radio.checked = state.coverFileId === entry.fileId;
     radio.disabled = !state.selected.has(entry.fileId);
     radio.onchange = () => { state.coverFileId = entry.fileId; renderReview(); };
-    cover.append(radio, document.createTextNode('设为封面'));
+    cover.append(radio, document.createTextNode('Use as cover'));
     body.append(cover);
   }
 
@@ -490,7 +493,7 @@ function describePhoto(photo) {
     .filter(Boolean)
     .join(' · ');
   if (shot) bits.push(shot);
-  if (photo.gps) bits.push('含 GPS');
+  if (photo.gps) bits.push('Has GPS');
   return bits.join('  ·  ');
 }
 
@@ -508,7 +511,7 @@ async function rotate(entry, degrees) {
     state.rotations.set(entry.fileId, Date.now());
   } catch (err) {
     entry.state = previous;
-    toast(`旋转失败：${err.message}`, 'error');
+    toast(`Rotation failed: ${err.message}`, 'error');
   }
   renderReview();
 }
@@ -527,7 +530,7 @@ async function publish() {
   }
 
   $('publish-btn').disabled = true;
-  const t = toast('正在写入相册并推送到 GitHub…', 'progress');
+  const t = toast('Writing the album and pushing to GitHub…', 'progress');
 
   try {
     const result = await api('/api/publish', {
@@ -559,19 +562,19 @@ async function publish() {
 
     t.update(
       result.git?.pushed
-        ? `已发布 ${result.added} 张到「${result.album.title}」。GitHub Actions 正在构建，大约一两分钟后网站更新。`
-        : `已在本地提交 ${result.added} 张到「${result.album.title}」，但没有推送（还没配置远端）。`,
+        ? `Published ${result.added} photos to “${result.album.title}”. GitHub Actions is building; the site updates in a minute or two.`
+        : `Committed ${result.added} photos to “${result.album.title}” locally, but nothing was pushed (no remote configured yet).`,
       'ok',
     );
 
     if (result.budget.overBytes > 0) {
       toast(
-        `已发布，但空间超了 ${fmtBytes(result.budget.overBytes)}。GitHub Pages 站点上限是 1GB，请到「管理」里删掉一些旧相册。`,
+        `Published, but you are ${fmtBytes(result.budget.overBytes)} over budget. GitHub Pages sites are capped at 1GB — delete some old albums under Manage.`,
         'error',
       );
     }
   } catch (err) {
-    t.update(`发布失败：${err.message}`, 'error');
+    t.update(`Publish failed: ${err.message}`, 'error');
     $('publish-btn').disabled = false;
   }
 }
@@ -587,7 +590,7 @@ function renderAlbums() {
     const td = document.createElement('td');
     td.colSpan = 5;
     td.className = 'empty';
-    td.textContent = '还没有相册。';
+    td.textContent = 'No albums yet.';
     tr.append(td);
     tbody.append(tr);
     renderBudgetDetail();
@@ -629,8 +632,8 @@ function updateDeleteButton() {
   const checked = selectedAlbumIds();
   $('delete-albums-btn').disabled = checked.length === 0;
   $('delete-albums-btn').textContent = checked.length
-    ? `删除选中的 ${checked.length} 个相册`
-    : '删除选中的相册';
+    ? `Delete ${checked.length} selected albums`
+    : 'Delete selected albums';
 }
 
 function selectedAlbumIds() {
@@ -640,11 +643,11 @@ function selectedAlbumIds() {
 function renderBudgetDetail() {
   const b = state.budget;
   const parts = [
-    `已用 ${fmtBytes(b.usedBytes)} / ${fmtBytes(b.budgetBytes)}（剩余 ${fmtBytes(b.freeBytes)}）`,
-    `共 ${state.albums.length} 个相册`,
+    `${fmtBytes(b.usedBytes)} of ${fmtBytes(b.budgetBytes)} used (${fmtBytes(b.freeBytes)} free)`,
+    `${state.albums.length} albums`,
   ];
   if (b.overBytes > 0) {
-    parts.push(`超出 ${fmtBytes(b.overBytes)}，建议先删除：${b.suggestions.map((s) => s.title).join('、')}`);
+    parts.push(`${fmtBytes(b.overBytes)} over budget — consider deleting: ${b.suggestions.map((s) => s.title).join(', ')}`);
   }
   $('budget-detail').textContent = parts.join(' · ');
 }
@@ -653,33 +656,33 @@ async function deleteSelectedAlbums() {
   const ids = selectedAlbumIds();
   if (ids.length === 0) return;
 
-  const titles = state.albums.filter((a) => ids.includes(a.id)).map((a) => a.title).join('、');
-  if (!confirm(`确定删除「${titles}」？照片会从网站和仓库里移除，无法恢复。`)) return;
+  const titles = state.albums.filter((a) => ids.includes(a.id)).map((a) => a.title).join(', ');
+  if (!confirm(`Delete “${titles}”? The photos are removed from the site and the repository, and this cannot be undone.`)) return;
 
   $('delete-albums-btn').disabled = true;
-  const t = toast('正在删除并推送…', 'progress');
+  const t = toast('Deleting and pushing…', 'progress');
   try {
     const result = await api('/api/albums/delete', { method: 'POST', body: JSON.stringify({ ids }) });
     await refresh();
     t.update(
       result.git?.pushed
-        ? `已删除 ${result.removed} 张照片，现在用了 ${fmtBytes(result.budget.usedBytes)}。网站一两分钟后更新。`
-        : `已在本地删除 ${result.removed} 张照片，但没有推送（还没配置远端）。`,
+        ? `Deleted ${result.removed} photos; ${fmtBytes(result.budget.usedBytes)} now in use. The site updates in a minute or two.`
+        : `Deleted ${result.removed} photos locally, but nothing was pushed (no remote configured yet).`,
       'ok',
     );
   } catch (err) {
-    t.update(`删除失败：${err.message}`, 'error');
+    t.update(`Delete failed: ${err.message}`, 'error');
   }
 }
 
 async function reclaim() {
   $('reclaim-btn').disabled = true;
-  const t = toast('正在回收 git 空间…', 'progress');
+  const t = toast('Reclaiming git space…', 'progress');
   try {
     const r = await api('/api/reclaim', { method: 'POST' });
-    t.update(`回收完成，释放了 ${fmtBytes(r.freed)}，本地仓库现在 ${fmtBytes(r.after)}。`, 'ok');
+    t.update(`Reclaimed ${fmtBytes(r.freed)}; the local repository is now ${fmtBytes(r.after)}.`, 'ok');
   } catch (err) {
-    t.update(`回收失败：${err.message}`, 'error');
+    t.update(`Reclaim failed: ${err.message}`, 'error');
   }
   $('reclaim-btn').disabled = false;
 }
@@ -693,7 +696,7 @@ async function saveSettings() {
   if ($('set-passcode').value) body.passcode = $('set-passcode').value;
 
   $('save-settings-btn').disabled = true;
-  const t = toast('正在保存并推送…', 'progress');
+  const t = toast('Saving and pushing…', 'progress');
   try {
     const r = await api('/api/settings', { method: 'POST', body: JSON.stringify(body) });
     const changedPasscode = Boolean(body.passcode);
@@ -701,19 +704,19 @@ async function saveSettings() {
     await refresh();
 
     if (!r.git?.changed) {
-      t.update('设置没有变化。', 'ok');
+      t.update('No settings changed.', 'ok');
     } else {
       // Everyone's saved unlock is the old hash, so changing the passcode signs all of them out.
-      const note = changedPasscode ? '家人下次打开需要重新输入口令。' : '';
+      const note = changedPasscode ? ' The family will have to enter the passcode again next time.' : '';
       t.update(
         r.git.pushed
-          ? `设置已推送，一两分钟后网站生效。${note}`
-          : `设置已提交，但没有远程仓库可推送，下次发布时一起上传。${note}`,
+          ? `Settings pushed; they take effect on the site in a minute or two.${note}`
+          : `Settings committed, but there is no remote to push to; they will go up with the next publish.${note}`,
         'ok',
       );
     }
   } catch (err) {
-    t.update(`保存失败：${err.message}`, 'error');
+    t.update(`Save failed: ${err.message}`, 'error');
   }
   $('save-settings-btn').disabled = false;
 }
@@ -767,9 +770,9 @@ $('tab-manage-btn').addEventListener('click', () => {
 
 // Measured on a 61MP Sony HIF at 2560px: 225 KB, 291 KB and 390 KB per photo.
 const QUALITY_HINTS = {
-  standard: '体积最小，适合日常分享。',
-  high: '比标准大约 29%，细节更扎实。',
-  max: '比标准大约 73%，放大看也经得起。',
+  standard: 'Smallest files, good for everyday sharing.',
+  high: 'About 29% larger than standard, with sturdier detail.',
+  max: 'About 73% larger than standard, holds up when zoomed in.',
 };
 
 function renderQualityHint() {
@@ -786,4 +789,4 @@ $('delete-albums-btn').addEventListener('click', deleteSelectedAlbums);
 $('reclaim-btn').addEventListener('click', reclaim);
 $('save-settings-btn').addEventListener('click', saveSettings);
 
-refresh().catch((err) => toast(`无法连接本地服务：${err.message}`, 'error'));
+refresh().catch((err) => toast(`Could not reach the local server: ${err.message}`, 'error'));

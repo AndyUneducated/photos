@@ -33,7 +33,7 @@ const checks = [
   ['width/height on every img', count(/<img class="tile__img"[^>]*width="\d+" height="\d+"/g) === 24],
   ['pswp dimensions', count(/data-pswp-width="\d+" data-pswp-height="\d+"/g) === 24],
   ['photo meta island', /id="photo-meta"/.test(html)],
-  ['footer', /最新/.test(html)],
+  ['footer', /Newest/.test(html)],
   ['no astro:assets import', !/_image\?href/.test(html)],
   ...metaIslandChecks(),
 ];

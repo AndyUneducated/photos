@@ -25,27 +25,27 @@ function Test-Command($name) {
 
 function Install-WithWinget($id, $label) {
     if (-not (Test-Command 'winget')) {
-        throw "$label 没有安装，而这台机器上也没有 winget。请手动安装 $label 后重新运行。"
+        throw "$label is not installed, and this machine does not have winget either. Please install $label by hand and run this again."
     }
-    Write-Step "正在安装 $label（首次运行需要几分钟）"
+    Write-Step "Installing $label (a few minutes, only on the first run)"
     winget install --id $id --exact --accept-source-agreements --accept-package-agreements --disable-interactivity
     Update-PathFromRegistry
 }
 
 # ---------------------------------------------------------------- prerequisites
 
-Write-Step '检查运行环境'
+Write-Step 'Checking the environment'
 
 if (-not (Test-Command 'node')) {
     Install-WithWinget 'OpenJS.NodeJS.LTS' 'Node.js'
 }
 if (-not (Test-Command 'node')) {
-    throw 'Node.js 安装后仍然找不到，请关掉这个窗口重新双击 start.cmd（新窗口才会有更新后的 PATH）。'
+    throw 'Node.js still cannot be found after installing it. Close this window and double-click start.cmd again (only a new window picks up the updated PATH).'
 }
 
 $nodeMajor = (& node -e 'process.stdout.write(process.versions.node.split(".")[0])')
 if ([int]$nodeMajor -lt 20) {
-    throw "需要 Node.js 20 或更高版本，当前是 v$nodeMajor。请升级 Node.js 后重试。"
+    throw "Node.js 20 or newer is required, but this machine has v$nodeMajor. Please upgrade Node.js and try again."
 }
 Write-Ok "Node.js $(& node -v)"
 
@@ -53,7 +53,7 @@ if (-not (Test-Command 'git')) {
     Install-WithWinget 'Git.Git' 'Git'
 }
 if (-not (Test-Command 'git')) {
-    throw 'Git 安装后仍然找不到，请关掉这个窗口重新双击 start.cmd。'
+    throw 'Git still cannot be found after installing it. Close this window and double-click start.cmd again.'
 }
 Write-Ok (& git --version)
 
@@ -78,28 +78,28 @@ try {
     }
 
     if ($needInstall) {
-        Write-Step '安装依赖（首次运行大约 1-2 分钟）'
+        Write-Step 'Installing dependencies (about 1-2 minutes on the first run)'
         if (Test-Path (Join-Path $root 'package-lock.json')) { npm ci } else { npm install }
-        if ($LASTEXITCODE -ne 0) { throw '依赖安装失败。' }
+        if ($LASTEXITCODE -ne 0) { throw 'Installing dependencies failed.' }
     }
     else {
-        Write-Ok '依赖已是最新'
+        Write-Ok 'Dependencies are already up to date'
     }
 
     # ------------------------------------------------------------ gallery branch
 
     if (-not (Test-Path (Join-Path $root '.git'))) {
-        Write-Step '初始化 git 仓库'
+        Write-Step 'Initializing the git repository'
         git init -b main | Out-Null
     }
 
-    Write-Step '检查 gallery 分支'
+    Write-Step 'Checking the gallery branch'
     node scripts/setup-gallery.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'gallery 分支初始化失败。' }
+    if ($LASTEXITCODE -ne 0) { throw 'Setting up the gallery branch failed.' }
 
     # ------------------------------------------------------------ run
 
-    Write-Step '启动相册工作台'
+    Write-Step 'Starting the photo studio'
     node studio/server.mjs
 }
 finally {

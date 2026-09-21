@@ -25,13 +25,13 @@ const check = (label, ok) => {
 };
 
 const a = results[0];
-check('90° 交换了长宽', results[90].web.width === a.web.height && results[90].web.height === a.web.width);
-check('180° 保持长宽', results[180].web.width === a.web.width && results[180].web.height === a.web.height);
-check('270° 交换了长宽', results[270].web.width === a.web.height && results[270].web.height === a.web.width);
+check('90° swaps width and height', results[90].web.width === a.web.height && results[90].web.height === a.web.width);
+check('180° keeps width and height', results[180].web.width === a.web.width && results[180].web.height === a.web.height);
+check('270° swaps width and height', results[270].web.width === a.web.height && results[270].web.height === a.web.width);
 // The id is the hash of the *source* file, so rotating must not change it — otherwise rotating a
 // photo after publishing would orphan the old files.
-check('id 只取决于源文件，不随旋转变化', new Set(Object.values(results).map((r) => r.id)).size === 1);
-check('每个角度都产出了非空 AVIF', Object.values(results).every((r) => r.web.data.length > 1000));
+check('id depends only on the source, not the rotation', new Set(Object.values(results).map((r) => r.id)).size === 1);
+check('every angle produced a non-empty AVIF', Object.values(results).every((r) => r.web.data.length > 1000));
 
-console.log(failures === 0 ? '\n全部通过。' : `\n${failures} 项失败。`);
+console.log(failures === 0 ? '\nAll passed.' : `\n${failures} failed.`);
 process.exit(failures ? 1 : 0);

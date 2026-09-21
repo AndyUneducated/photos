@@ -10,7 +10,7 @@ contract between the two halves of the project, so treat it as frozen unless `ve
 
   "site": {
     "title": "Anning Photos",
-    "tagline": "家庭相册",
+    "tagline": "Family photo album",
     // SHA-256 (hex, lowercase) of the passcode. Empty string = no gate at all.
     "passcodeHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
   },
@@ -22,7 +22,7 @@ contract between the two halves of the project, so treat it as frozen unless `ve
   "albums": [
     {
       "id": "2026-09-19-shanghai-night",     // slug, also the folder name under gallery/albums/
-      "title": "上海夜色",
+      "title": "Shanghai Nights",
       "date": "2026-09-19",                  // shoot date, YYYY-MM-DD, from EXIF or user override
       "coverPhotoId": "a1b2c3d4",
       "showLocation": false,                 // per-album GPS opt-in; default false
@@ -54,7 +54,7 @@ contract between the two halves of the project, so treat it as frozen unless `ve
         "focal": 55
       },
       // Present only when the album has showLocation === true.
-      "location": { "lat": 31.2304, "lon": 121.4737, "label": "黄浦区, 上海市" }
+      "location": { "lat": 31.2304, "lon": 121.4737, "label": "Huangpu, Shanghai" }
     }
   ]
 }

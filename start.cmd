@@ -5,7 +5,7 @@ cd /d "%~dp0"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\bootstrap.ps1"
 if errorlevel 1 (
   echo.
-  echo 启动失败。上面的错误信息说明了原因。
+  echo Startup failed. The error message above explains why.
   pause
 )
 endlocal

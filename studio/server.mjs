@@ -103,7 +103,7 @@ app.post('/api/settings', asyncRoute(async (req, res) => {
   // Settings only reach visitors through a rebuild, and a rebuild only runs on a push. Publishing
   // here is what makes a passcode change take effect now instead of silently waiting for the next
   // upload. publishGallery compares trees first, so re-saving unchanged settings costs nothing.
-  const git = await publishGallery('gallery: 更新站点设置', { push: req.body?.push !== false });
+  const git = await publishGallery('gallery: update site settings', { push: req.body?.push !== false });
 
   res.json({ ok: true, config: publicConfig(config), git });
 }));
@@ -128,11 +128,11 @@ function publicConfig(config) {
  */
 app.post('/api/stage', asyncRoute(async (req, res) => {
   const name = String(req.query.name || '').trim();
-  if (!name) return res.status(400).json({ error: '缺少文件名' });
+  if (!name) return res.status(400).json({ error: 'The file name is missing.' });
 
   const ext = extname(name).toLowerCase();
   if (!SUPPORTED_EXTENSIONS.has(ext)) {
-    return res.status(415).json({ error: `不支持的文件类型 ${ext || '(无扩展名)'}` });
+    return res.status(415).json({ error: `Unsupported file type ${ext || '(no extension)'}` });
   }
 
   const fileId = randomUUID();
@@ -171,7 +171,7 @@ app.get('/api/staged/:fileId/:variant', asyncRoute(async (req, res) => {
   try {
     data = await readFile(path);
   } catch {
-    return res.status(404).json({ error: '这张照片还没处理好' });
+    return res.status(404).json({ error: 'This photo has not finished processing yet.' });
   }
 
   res.type('image/avif');
@@ -182,7 +182,7 @@ app.get('/api/staged/:fileId/:variant', asyncRoute(async (req, res) => {
 
 function stagingDir(fileId) {
   // Guard against a crafted id escaping the staging root.
-  if (!/^[0-9a-f-]{36}$/i.test(fileId)) throw new HttpError(400, '非法的文件 id');
+  if (!/^[0-9a-f-]{36}$/i.test(fileId)) throw new HttpError(400, 'Invalid file id');
   return join(STAGING_DIR, fileId);
 }
 
@@ -211,7 +211,7 @@ async function listStaged() {
 
 app.post('/api/process', asyncRoute(async (req, res) => {
   const fileIds = Array.isArray(req.body?.fileIds) ? req.body.fileIds : [];
-  if (fileIds.length === 0) return res.status(400).json({ error: '没有要处理的文件' });
+  if (fileIds.length === 0) return res.status(400).json({ error: 'There are no files to process.' });
 
   const config = await loadConfig();
   const quality = normalizeTier(req.body?.quality);
@@ -241,7 +241,7 @@ app.post('/api/process', asyncRoute(async (req, res) => {
 
 app.get('/api/process/:jobId', (req, res) => {
   const job = jobs.get(req.params.jobId);
-  if (!job) return res.status(404).json({ error: '任务不存在（可能是重启过）' });
+  if (!job) return res.status(404).json({ error: 'No such job (the studio may have been restarted).' });
 
   res.json({
     id: job.id,
@@ -363,7 +363,7 @@ async function persistResult(item, result) {
 async function findOriginal(dir) {
   const entries = await readdir(dir);
   const original = entries.find((name) => name.startsWith('original'));
-  if (!original) throw new HttpError(404, '暂存的原始文件不见了');
+  if (!original) throw new HttpError(404, 'The staged original file has gone missing.');
   return join(dir, original);
 }
 
@@ -380,7 +380,7 @@ app.post('/api/rotate', asyncRoute(async (req, res) => {
   });
 
   const [result] = results;
-  if (!result?.ok) return res.status(500).json({ error: result?.error || '旋转失败' });
+  if (!result?.ok) return res.status(500).json({ error: result?.error || 'Rotation failed.' });
 
   const photo = await persistResult({ fileId, name: meta.name }, result.result);
 
@@ -406,7 +406,7 @@ app.post('/api/publish', asyncRoute(async (req, res) => {
     push = true,
   } = req.body || {};
 
-  if (fileIds.length === 0) return res.status(400).json({ error: '没有选中任何照片' });
+  if (fileIds.length === 0) return res.status(400).json({ error: 'No photos are selected.' });
 
   const config = await loadConfig();
   const manifest = await loadManifest(config);
@@ -415,7 +415,7 @@ app.post('/api/publish', asyncRoute(async (req, res) => {
   for (const fileId of fileIds) {
     const dir = stagingDir(fileId);
     const meta = JSON.parse(await readFile(join(dir, 'meta.json'), 'utf8'));
-    if (!meta.photo) return res.status(409).json({ error: `${meta.name} 还没有处理完` });
+    if (!meta.photo) return res.status(409).json({ error: `${meta.name} has not finished processing yet.` });
     staged.push({ fileId, dir, meta });
   }
 
@@ -479,7 +479,7 @@ app.post('/api/publish', asyncRoute(async (req, res) => {
   }
 
   if (added.length === 0) {
-    return res.status(409).json({ error: '这些照片都已经发布过了（内容完全相同）' });
+    return res.status(409).json({ error: 'All of these photos have already been published (the contents are identical).' });
   }
 
   album.coverPhotoId ||= added[0].id;
@@ -487,7 +487,7 @@ app.post('/api/publish', asyncRoute(async (req, res) => {
   manifest.photos.push(...added);
   await saveManifest(manifest);
 
-  const publishResult = await publishGallery(`gallery: ${album.title} (${added.length} 张)`, { push });
+  const publishResult = await publishGallery(`gallery: ${album.title} (${added.length} photos)`, { push });
 
   for (const { fileId } of staged) {
     await rm(stagingDir(fileId), { recursive: true, force: true });
@@ -513,7 +513,7 @@ app.post('/api/albums/delete', asyncRoute(async (req, res) => {
   }
 
   await saveManifest(manifest);
-  const git = await publishGallery(`gallery: 删除 ${ids.length} 个相册`, { push: req.body?.push !== false });
+  const git = await publishGallery(`gallery: delete ${ids.length} albums`, { push: req.body?.push !== false });
 
   res.json({ removed, budget: budgetReport(manifest), albums: manifest.albums, git });
 }));
@@ -527,7 +527,7 @@ app.post('/api/photos/delete', asyncRoute(async (req, res) => {
   for (const photo of removed) await removePhotoFiles(photo.albumId, photo.id);
 
   await saveManifest(manifest);
-  const git = await publishGallery(`gallery: 删除 ${removed.length} 张照片`, { push: req.body?.push !== false });
+  const git = await publishGallery(`gallery: delete ${removed.length} photos`, { push: req.body?.push !== false });
 
   res.json({ removed: removed.length, budget: budgetReport(manifest), albums: manifest.albums, git });
 }));
@@ -561,7 +561,7 @@ function asyncRoute(handler) {
 app.use((err, _req, res, _next) => {
   const status = err.status || 500;
   if (status >= 500) console.error(err);
-  res.status(status).json({ error: err.message || '内部错误' });
+  res.status(status).json({ error: err.message || 'Internal error' });
 });
 
 // ---------------------------------------------------------------------------- boot
@@ -595,15 +595,15 @@ const server = createServer(app);
 server.listen(PORT, '127.0.0.1', async () => {
   const config = await loadConfig().catch(() => ({}));
   const url = `http://127.0.0.1:${PORT}/`;
-  console.log(`\n  相册工作台已启动：${url}`);
-  console.log(`  站点标题：${config.siteTitle ?? '(未设置)'}    并发：${config.concurrency || defaultConcurrency()}`);
+  console.log(`\n  Photo studio is running at ${url}`);
+  console.log(`  Site title: ${config.siteTitle ?? '(not set)'}    Concurrency: ${config.concurrency || defaultConcurrency()}`);
 
   const git = await gitStatus().catch(() => null);
   if (git && !git.worktreeReady) {
-    console.log('  提示：gallery 分支的 worktree 还没建好，在页面上点一下「初始化」即可。');
+    console.log('  Tip: the worktree for the gallery branch is not set up yet — opening the page sets it up.');
   }
   if (git && !git.remote) {
-    console.log('  提示：还没有配置 origin 远端，发布会只提交到本地。');
+    console.log('  Tip: no origin remote is configured yet, so publishing will only commit locally.');
   }
 
   if (process.env.PHOTOS_NO_OPEN !== '1') {

@@ -42,7 +42,7 @@ const BT2020_TO_SRGB = [
  * @returns {{matrix: number[]|null, transfer: 'srgb'|'hlg'|'pq', hdr: boolean, label: string}}
  */
 export function planColourConversion(colour) {
-  if (!colour) return { matrix: null, transfer: 'srgb', hdr: false, label: 'sRGB (假定)' };
+  if (!colour) return { matrix: null, transfer: 'srgb', hdr: false, label: 'sRGB (assumed)' };
 
   if (colour.kind === 'icc') {
     const desc = (colour.description || '').toLowerCase();
@@ -54,7 +54,7 @@ export function planColourConversion(colour) {
     }
     // sRGB, Adobe RGB and anything else unrecognised: leave the pixels alone. Adobe RGB is close
     // enough to sRGB in the midtones that guessing wrong here is worse than doing nothing.
-    return { matrix: null, transfer: 'srgb', hdr: false, label: colour.description || 'ICC (未识别)' };
+    return { matrix: null, transfer: 'srgb', hdr: false, label: colour.description || 'ICC (unrecognised)' };
   }
 
   const matrix =

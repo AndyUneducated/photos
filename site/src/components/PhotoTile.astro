@@ -1,6 +1,6 @@
 ---
 import { assetUrl } from '../lib/manifest.js';
-import { formatDateZh } from '../lib/format.js';
+import { formatDate } from '../lib/format.js';
 
 interface Props {
   photo: {
@@ -24,7 +24,7 @@ const { photo } = Astro.props;
 // exist at build time, scripts/collect.mjs drops them into dist/p afterwards.
 const href = assetUrl(photo.web);
 const thumb = assetUrl(photo.thumb);
-const alt = photo.caption || formatDateZh(photo.takenAt) || '照片';
+const alt = photo.caption || formatDate(photo.takenAt) || 'Photo';
 ---
 
 <a

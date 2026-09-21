@@ -39,7 +39,7 @@ if (files.length === 0) {
 }
 
 if (files.length === 0) {
-  console.error('没有找到样本文件。把照片放进 samples/ 目录，或者把路径作为参数传进来。');
+  console.error('No sample files found. Put photos in the samples/ directory, or pass paths as arguments.');
   process.exit(1);
 }
 
@@ -51,24 +51,24 @@ for (const file of files) {
   console.log(`\n=== ${file} ===`);
   try {
     const source = await readFile(file);
-    console.log(`  容器      : ${isHeif(source) ? 'HEIF' : `非 HEIF (${extname(file)})`}  ${fmtBytes(source.length)}`);
+    console.log(`  container    : ${isHeif(source) ? 'HEIF' : `not HEIF (${extname(file)})`}  ${fmtBytes(source.length)}`);
     if (isHeif(source)) {
-      console.log(`  colr box  : ${JSON.stringify(readColourInfo(source))}`);
+      console.log(`  colr box     : ${JSON.stringify(readColourInfo(source))}`);
     }
 
     const t0 = performance.now();
     const result = await processPhoto(file, OPTS);
     const ms = Math.round(performance.now() - t0);
 
-    console.log(`  耗时      : ${ms} ms`);
-    console.log(`  色彩空间  : ${result.colourSpace}`);
-    console.log(`  web       : ${result.web.width}x${result.web.height}  ${fmtBytes(result.web.data.length)}`);
-    console.log(`  thumb     : ${result.thumb.width}x${result.thumb.height}  ${fmtBytes(result.thumb.data.length)}`);
-    console.log(`  lqip      : ${result.lqip.length} 字符   主色 ${result.color}`);
-    console.log(`  拍摄时间  : ${result.takenAt ?? '(无)'}`);
-    console.log(`  EXIF      : ${JSON.stringify(result.exif)}`);
-    console.log(`  GPS       : ${result.gps ? `${result.gps.lat}, ${result.gps.lon}` : '(无)'}`);
-    for (const note of result.notes) console.log(`  注意      : ${note}`);
+    console.log(`  took         : ${ms} ms`);
+    console.log(`  colour space : ${result.colourSpace}`);
+    console.log(`  web          : ${result.web.width}x${result.web.height}  ${fmtBytes(result.web.data.length)}`);
+    console.log(`  thumb        : ${result.thumb.width}x${result.thumb.height}  ${fmtBytes(result.thumb.data.length)}`);
+    console.log(`  lqip         : ${result.lqip.length} chars   dominant ${result.color}`);
+    console.log(`  taken at     : ${result.takenAt ?? '(none)'}`);
+    console.log(`  EXIF         : ${JSON.stringify(result.exif)}`);
+    console.log(`  GPS          : ${result.gps ? `${result.gps.lat}, ${result.gps.lon}` : '(none)'}`);
+    for (const note of result.notes) console.log(`  note         : ${note}`);
 
     const stem = basename(file, extname(file));
     await writeFile(join(OUT_DIR, `${stem}.web.avif`), result.web.data);
@@ -78,12 +78,12 @@ for (const file of files) {
     await sharp(result.web.data).jpeg({ quality: 88 }).toFile(join(OUT_DIR, `${stem}.preview.jpg`));
   } catch (err) {
     failures++;
-    console.log(`  失败      : ${err.message}`);
+    console.log(`  failed    : ${err.message}`);
     if (process.env.VERBOSE) console.log(err.stack);
   }
 }
 
-console.log(`\n完成：${files.length - failures}/${files.length} 成功，输出在 ${OUT_DIR}/`);
+console.log(`\nDone: ${files.length - failures}/${files.length} succeeded, output in ${OUT_DIR}/`);
 process.exit(failures ? 1 : 0);
 
 function fmtBytes(n) {

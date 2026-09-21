@@ -16,7 +16,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 const sample = process.argv[2] || (await firstSample());
 if (!sample) {
-  console.error('没有找到测试用的照片。把一张照片放进 samples/，或者作为参数传进来。');
+  console.error('No test photo found. Put one in samples/, or pass its path as an argument.');
   process.exit(1);
 }
 
@@ -30,7 +30,7 @@ function check(label, condition, detail = '') {
   }
 }
 
-console.log(`测试文件：${sample}\n启动服务…`);
+console.log(`Test file: ${sample}\nStarting the server…`);
 
 const server = spawn(process.execPath, ['studio/server.mjs'], {
   cwd: ROOT,
@@ -47,8 +47,8 @@ try {
 
   // ---------------------------------------------------------------- state
   const state = await get('/api/state');
-  check('GET /api/state 返回配置', Boolean(state.config?.siteTitle), JSON.stringify(state.config));
-  check('gallery worktree 已就绪', state.git.worktreeReady === true, JSON.stringify(state.git));
+  check('GET /api/state returns the config', Boolean(state.config?.siteTitle), JSON.stringify(state.config));
+  check('gallery worktree is ready', state.git.worktreeReady === true, JSON.stringify(state.git));
 
   const albumsBefore = state.albums.length;
   const usedBefore = state.budget.usedBytes;
@@ -56,26 +56,26 @@ try {
   // ---------------------------------------------------------------- stage
   const bytes = await readFile(sample);
   const staged = await post(`/api/stage?name=${encodeURIComponent(basename(sample))}`, bytes, 'application/octet-stream');
-  check('暂存文件返回 fileId', Boolean(staged.fileId), JSON.stringify(staged));
+  check('staging a file returns a fileId', Boolean(staged.fileId), JSON.stringify(staged));
 
   // ---------------------------------------------------------------- process
   const { jobId } = await post('/api/process', { fileIds: [staged.fileId] });
-  check('创建处理任务', Boolean(jobId));
+  check('processing job created', Boolean(jobId));
 
   const job = await waitForJob(jobId);
-  check('处理任务完成', job.state === 'done', job.state);
+  check('processing job finished', job.state === 'done', job.state);
 
   const item = job.items[0];
-  check('照片处理成功', item.state === 'ready', item.error || item.state);
-  check('返回了尺寸', item.photo?.w > 0 && item.photo?.h > 0, JSON.stringify(item.photo?.w));
-  check('生成了 lqip', typeof item.photo?.lqip === 'string' && item.photo.lqip.startsWith('data:image/webp'));
-  check('生成了主色', /^#[0-9a-f]{6}$/.test(item.photo?.color || ''), item.photo?.color);
+  check('photo processed successfully', item.state === 'ready', item.error || item.state);
+  check('dimensions returned', item.photo?.w > 0 && item.photo?.h > 0, JSON.stringify(item.photo?.w));
+  check('lqip generated', typeof item.photo?.lqip === 'string' && item.photo.lqip.startsWith('data:image/webp'));
+  check('dominant colour generated', /^#[0-9a-f]{6}$/.test(item.photo?.color || ''), item.photo?.color);
 
   // ---------------------------------------------------------------- staged image is served
   const thumbRes = await fetch(`${BASE}/api/staged/${staged.fileId}/thumb`);
   const thumbBytes = Buffer.from(await thumbRes.arrayBuffer());
-  check('缩略图可以取到', thumbRes.ok && thumbBytes.length > 500, `${thumbRes.status}, ${thumbBytes.length}B`);
-  check('缩略图是 AVIF', thumbBytes.includes(Buffer.from('ftyp')) && thumbBytes.includes(Buffer.from('av01')));
+  check('thumbnail can be fetched', thumbRes.ok && thumbBytes.length > 500, `${thumbRes.status}, ${thumbBytes.length}B`);
+  check('thumbnail is AVIF', thumbBytes.includes(Buffer.from('ftyp')) && thumbBytes.includes(Buffer.from('av01')));
 
   // ---------------------------------------------------------------- quality tiers
   // An ignored tier would look identical to a working one everywhere except the encoded size,
@@ -89,9 +89,9 @@ try {
     (await post('/api/process', { fileIds: [staged2.fileId], quality: 'max' })).jobId,
   );
   const maxItem = maxJob.items[0];
-  check('最高画质处理成功', maxItem.state === 'ready', maxItem.error || maxItem.state);
+  check('max quality tier processed successfully', maxItem.state === 'ready', maxItem.error || maxItem.state);
   check(
-    '最高画质明显更大',
+    'max quality tier is clearly bigger',
     maxItem.photo?.bytes > item.photo.bytes * 1.4,
     `standard ${item.photo.bytes} B vs max ${maxItem.photo?.bytes} B`,
   );
@@ -100,61 +100,61 @@ try {
   // ---------------------------------------------------------------- publish
   const published = await post('/api/publish', {
     fileIds: [staged.fileId],
-    title: '自动化测试相册',
+    title: 'Automated test album',
     showLocation: false,
     coverFileId: staged.fileId,
-    captions: { [staged.fileId]: '测试说明' },
+    captions: { [staged.fileId]: 'Test caption' },
     push: false,
   });
-  check('发布成功', published.added === 1, JSON.stringify(published).slice(0, 200));
+  check('publish succeeded', published.added === 1, JSON.stringify(published).slice(0, 200));
 
   const albumId = published.album.id;
-  check('相册 id 带日期前缀', /^\d{4}-\d{2}-\d{2}/.test(albumId), albumId);
-  check('封面已设置', published.album.coverPhotoId === item.photo.id);
-  check('占用空间增加', published.budget.usedBytes > usedBefore);
+  check('album id has a date prefix', /^\d{4}-\d{2}-\d{2}/.test(albumId), albumId);
+  check('cover was set', published.album.coverPhotoId === item.photo.id);
+  check('used space went up', published.budget.usedBytes > usedBefore);
 
   // ---------------------------------------------------------------- manifest on disk
   const manifest = JSON.parse(await readFile(join(ROOT, 'gallery', 'manifest.json'), 'utf8'));
-  check('manifest 版本是 1', manifest.version === 1);
-  check('manifest 记录了相册', manifest.albums.length === albumsBefore + 1);
+  check('manifest version is 1', manifest.version === 1);
+  check('manifest recorded the album', manifest.albums.length === albumsBefore + 1);
 
   const photo = manifest.photos.find((p) => p.id === item.photo.id);
-  check('manifest 记录了照片', Boolean(photo));
-  check('照片带 albumId', photo?.albumId === albumId);
-  check('照片说明写进去了', photo?.caption === '测试说明');
-  check('没有 location 字段（相册未开启位置）', photo && !('location' in photo));
-  check('web 路径形如 p/<album>/w/<id>.avif', photo?.web === `p/${albumId}/w/${photo.id}.avif`, photo?.web);
+  check('manifest recorded the photo', Boolean(photo));
+  check('photo carries an albumId', photo?.albumId === albumId);
+  check('caption was written through', photo?.caption === 'Test caption');
+  check('no location field (album did not opt in)', photo && !('location' in photo));
+  check('web path looks like p/<album>/w/<id>.avif', photo?.web === `p/${albumId}/w/${photo.id}.avif`, photo?.web);
 
   const webPath = join(ROOT, 'gallery', 'albums', albumId, 'w', `${photo.id}.avif`);
   const thumbPath = join(ROOT, 'gallery', 'albums', albumId, 't', `${photo.id}.avif`);
-  check('web 文件存在', await exists(webPath), webPath);
-  check('thumb 文件存在', await exists(thumbPath), thumbPath);
-  check('bytes 与磁盘一致', photo.bytes === (await size(webPath)) + (await size(thumbPath)));
+  check('web file exists', await exists(webPath), webPath);
+  check('thumb file exists', await exists(thumbPath), thumbPath);
+  check('bytes agrees with disk', photo.bytes === (await size(webPath)) + (await size(thumbPath)));
 
   // ---------------------------------------------------------------- git
   // `refs/heads/gallery` rather than `gallery`: there is also a directory called `gallery`, and
   // git would refuse the ambiguous name.
   const log = await git(['log', '--oneline', 'refs/heads/gallery']);
-  check('gallery 分支有提交', log.includes('自动化测试相册'), log.slice(0, 200));
+  check('gallery branch has a commit', log.includes('Automated test album'), log.slice(0, 200));
 
   const parents = await git(['rev-list', '--count', 'refs/heads/gallery']);
-  check('gallery 分支只有一个提交（无历史）', parents.trim() === '1', parents.trim());
+  check('gallery branch has exactly one commit (no history)', parents.trim() === '1', parents.trim());
 
   // GitHub Actions reads a workflow from the branch that was pushed, so without this copy a
   // gallery push rebuilds nothing and the site silently keeps serving the previous photos.
   const lf = (s) => s.replace(/\r\n/g, '\n').trim();
   const shipped = await git(['show', 'refs/heads/gallery:.github/workflows/deploy.yml']).catch(() => '');
   const onMain = await readFile(join(ROOT, '.github', 'workflows', 'deploy.yml'), 'utf8');
-  check('gallery 分支带着构建工作流', lf(shipped) === lf(onMain), `${lf(shipped).length} vs ${lf(onMain).length}`);
+  check('gallery branch carries the build workflow', lf(shipped) === lf(onMain), `${lf(shipped).length} vs ${lf(onMain).length}`);
 
   const stagingLeft = await readdir(join(ROOT, 'studio', '.state', 'staging')).catch(() => []);
-  check('发布后清空了暂存目录', stagingLeft.length === 0, stagingLeft.join(','));
+  check('staging directory cleared after publish', stagingLeft.length === 0, stagingLeft.join(','));
 
   // ---------------------------------------------------------------- delete
   const deleted = await post('/api/albums/delete', { ids: [albumId], push: false });
-  check('删除相册', deleted.removed === 1, JSON.stringify(deleted).slice(0, 200));
-  check('删除后回到原始占用', deleted.budget.usedBytes === usedBefore);
-  check('相册目录已删除', !(await exists(join(ROOT, 'gallery', 'albums', albumId))));
+  check('album deleted', deleted.removed === 1, JSON.stringify(deleted).slice(0, 200));
+  check('usage back to the original after delete', deleted.budget.usedBytes === usedBefore);
+  check('album directory removed', !(await exists(join(ROOT, 'gallery', 'albums', albumId))));
 
   // ---------------------------------------------------------------- settings publish
   // A passcode change is worthless if it only lands in the working tree: the site rebuilds on
@@ -164,21 +164,21 @@ try {
   try {
     const probe = 'test-passcode-' + Date.now();
     const saved = await post('/api/settings', { passcode: probe, push: false });
-    check('保存设置产生了提交', saved.git?.changed === true, JSON.stringify(saved.git));
+    check('saving settings produced a commit', saved.git?.changed === true, JSON.stringify(saved.git));
 
     const wantHash = createHash('sha256').update(probe, 'utf8').digest('hex');
     const cfg = JSON.parse(await readFile(configPath, 'utf8'));
-    check('config.json 存的是哈希而非明文', cfg.passcodeHash === wantHash && !configBefore.includes(probe));
+    check('config.json stores the hash, not the plaintext', cfg.passcodeHash === wantHash && !configBefore.includes(probe));
 
     const m = JSON.parse(await readFile(join(ROOT, 'gallery', 'manifest.json'), 'utf8'));
-    check('manifest 带上了新口令哈希', m.site.passcodeHash === wantHash, m.site.passcodeHash);
+    check('manifest picked up the new passcode hash', m.site.passcodeHash === wantHash, m.site.passcodeHash);
 
     const committed = await git(['show', 'refs/heads/gallery:manifest.json']);
-    check('新哈希确实进了提交', JSON.parse(committed).site.passcodeHash === wantHash);
-    check('gallery 仍然只有一个提交', (await git(['rev-list', '--count', 'refs/heads/gallery'])).trim() === '1');
+    check('the new hash really made it into the commit', JSON.parse(committed).site.passcodeHash === wantHash);
+    check('gallery still has exactly one commit', (await git(['rev-list', '--count', 'refs/heads/gallery'])).trim() === '1');
 
     const again = await post('/api/settings', { passcode: probe, push: false });
-    check('重复保存不产生空提交', again.git?.changed === false, JSON.stringify(again.git));
+    check('saving again produces no empty commit', again.git?.changed === false, JSON.stringify(again.git));
   } finally {
     // Put the real hash back on disk, then save once with no passcode field so the manifest and
     // the gallery commit get re-stamped from the restored config.
@@ -187,20 +187,20 @@ try {
   }
 
   const restored = JSON.parse(await readFile(join(ROOT, 'gallery', 'manifest.json'), 'utf8'));
-  check('测试后口令已还原', restored.site.passcodeHash === JSON.parse(configBefore).passcodeHash);
+  check('passcode restored after the test', restored.site.passcodeHash === JSON.parse(configBefore).passcodeHash);
 } catch (err) {
   failures++;
-  console.log(`\n测试过程中抛出异常：${err.message}`);
+  console.log(`\nThe test threw an exception: ${err.message}`);
   console.log(err.stack);
 } finally {
   server.kill();
 }
 
 if (serverLog.includes('Error') || serverLog.includes('error')) {
-  console.log(`\n--- 服务端日志 ---\n${serverLog.trim()}`);
+  console.log(`\n--- server log ---\n${serverLog.trim()}`);
 }
 
-console.log(failures === 0 ? '\n全部通过。' : `\n${failures} 项失败。`);
+console.log(failures === 0 ? '\nAll passed.' : `\n${failures} failed.`);
 process.exit(failures === 0 ? 0 : 1);
 
 // ---------------------------------------------------------------- helpers
@@ -227,7 +227,7 @@ async function waitForServer() {
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error(`服务没有起来。日志：\n${serverLog}`);
+  throw new Error(`The server never came up. Log:\n${serverLog}`);
 }
 
 async function waitForJob(jobId) {
@@ -236,7 +236,7 @@ async function waitForJob(jobId) {
     if (job.state !== 'running') return job;
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error('处理任务超时');
+  throw new Error('Timed out waiting for the processing job');
 }
 
 async function get(path) {

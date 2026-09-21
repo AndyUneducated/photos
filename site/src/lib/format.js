@@ -22,20 +22,37 @@ export function parseTakenAt(takenAt) {
 
 const pad = (n) => String(n).padStart(2, '0');
 
-/** `2026年9月19日` */
-export function formatDateZh(takenAt) {
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+const monthName = (month) => MONTHS[month - 1] || String(month);
+
+/** `Sep 19, 2026` */
+export function formatDate(takenAt) {
   const t = parseTakenAt(takenAt);
   if (!t) return '';
-  return `${t.year}年${t.month}月${t.day}日`;
+  return `${monthName(t.month)} ${t.day}, ${t.year}`;
 }
 
-/** `2026年9月19日 20:14` */
-export function formatDateTimeZh(takenAt) {
+/** `Sep 19, 2026 · 20:14` */
+export function formatDateTime(takenAt) {
   const t = parseTakenAt(takenAt);
   if (!t) return '';
-  const date = `${t.year}年${t.month}月${t.day}日`;
+  const date = `${monthName(t.month)} ${t.day}, ${t.year}`;
   if (t.hour === null || t.minute === null) return date;
-  return `${date} ${pad(t.hour)}:${pad(t.minute)}`;
+  return `${date} · ${pad(t.hour)}:${pad(t.minute)}`;
 }
 
 /**

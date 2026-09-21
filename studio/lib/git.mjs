@@ -49,7 +49,7 @@ export function git(args, { cwd = ROOT, stdin } = {}) {
     child.on('error', reject);
     child.on('close', (code) => {
       if (code === 0) resolvePromise(stdout.trim());
-      else reject(new GitError(stderr.trim() || `git ${args[0]} 退出码 ${code}`, { args, stderr }));
+      else reject(new GitError(stderr.trim() || `git ${args[0]} exited with code ${code}`, { args, stderr }));
     });
     if (stdin !== undefined) child.stdin.end(stdin);
     else child.stdin.end();
@@ -112,14 +112,14 @@ export async function ensureGalleryWorktree() {
   const occupied = await directoryHasContent(GALLERY_DIR);
   if (occupied) {
     throw new Error(
-      `gallery/ 目录已经存在且非空，但它不是 git worktree。请先把里面的东西移走或删掉，再重新运行初始化。`,
+      `The gallery/ directory already exists and is not empty, but it is not a git worktree. Move or delete what is inside it, then run the setup again.`,
     );
   }
 
   const ident = await identityArgs();
   const exists = await gitOrNull(['rev-parse', '--verify', '--quiet', 'refs/heads/gallery']);
   if (!exists) {
-    const commit = await git([...ident, 'commit-tree', EMPTY_TREE, '-m', 'gallery: 初始化（空）']);
+    const commit = await git([...ident, 'commit-tree', EMPTY_TREE, '-m', 'gallery: initialise (empty)']);
     await git(['branch', 'gallery', commit]);
   }
 
@@ -199,9 +199,10 @@ async function assertNotBehindRemote() {
   if (!remoteTree || !localTree || remoteTree === localTree) return;
 
   throw new GitError(
-    '远程 gallery 分支和本地对不上，可能是在另一台电脑上发布过。继续发布会用本地内容覆盖远程，' +
-      '已中止。请先在本目录执行：git -C gallery fetch origin gallery 然后 ' +
-      'git -C gallery reset --hard FETCH_HEAD，确认照片都在之后再发布。',
+    'The remote gallery branch does not match the local one, which usually means a publish happened on another ' +
+      'computer. Continuing would overwrite the remote with the local contents, so this publish has been aborted. ' +
+      'In this directory, run: git -C gallery fetch origin gallery and then ' +
+      'git -C gallery reset --hard FETCH_HEAD, check that all the photos are there, and publish again.',
     { args: ['fetch', 'origin', 'gallery'], stderr: '' },
   );
 }

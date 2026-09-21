@@ -46,11 +46,11 @@ export function createLightbox({ gallery, onPhotoChange }) {
     wheelToZoom: true,
     // The dark chrome is already very quiet; don't also dim the photo.
     imageClickAction: 'zoom-or-close',
-    closeTitle: '关闭',
-    zoomTitle: '缩放',
-    arrowPrevTitle: '上一张',
-    arrowNextTitle: '下一张',
-    errorMsg: '这张照片加载失败了',
+    closeTitle: 'Close',
+    zoomTitle: 'Zoom',
+    arrowPrevTitle: 'Previous',
+    arrowNextTitle: 'Next',
+    errorMsg: 'This photo failed to load',
     indexIndicatorSep: ' / ',
   });
 
@@ -96,7 +96,7 @@ export function createLightbox({ gallery, onPhotoChange }) {
       link.href = info.locUrl;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.textContent = info.loc || '在地图上查看';
+      link.textContent = info.loc || 'View on map';
       inner.append(link);
     }
 
@@ -108,8 +108,8 @@ export function createLightbox({ gallery, onPhotoChange }) {
 
     pswp.ui.registerElement({
       name: 'download',
-      ariaLabel: '下载这张照片',
-      title: '下载',
+      ariaLabel: 'Download this photo',
+      title: 'Download',
       order: 8,
       isButton: true,
       tagName: 'a',
@@ -132,8 +132,8 @@ export function createLightbox({ gallery, onPhotoChange }) {
 
     pswp.ui.registerElement({
       name: 'pswp-info',
-      ariaLabel: '照片信息',
-      title: '信息',
+      ariaLabel: 'Photo info',
+      title: 'Info',
       order: 9,
       isButton: true,
       html: ICON_INFO,

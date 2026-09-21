@@ -6,7 +6,7 @@ import EmptyState from '../components/EmptyState.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import Gate from '../components/Gate.astro';
 import { loadManifest } from '../lib/manifest.js';
-import { formatDateTimeZh, formatExif, locationLabel, osmUrl } from '../lib/format.js';
+import { formatDateTime, formatExif, locationLabel, osmUrl } from '../lib/format.js';
 
 const manifest = loadManifest();
 const { site, albums, photos } = manifest;
@@ -17,7 +17,7 @@ const { site, albums, photos } = manifest;
 const photoMeta = Object.create(null);
 for (const photo of photos) {
   const entry = {};
-  const date = formatDateTimeZh(photo.takenAt);
+  const date = formatDateTime(photo.takenAt);
   const exif = formatExif(photo.exif);
   if (date) entry.date = date;
   if (photo.caption) entry.caption = photo.caption;

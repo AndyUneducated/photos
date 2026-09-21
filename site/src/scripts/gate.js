@@ -64,7 +64,7 @@ export function createGate(onUnlock) {
   // crypto.subtle only exists in secure contexts. Say so instead of failing
   // silently when the site is opened over plain http from another machine.
   if (!window.crypto || !window.crypto.subtle) {
-    say('当前连接不是安全连接（需要 HTTPS 或 localhost），无法校验密码。');
+    say('This connection is not secure (HTTPS or localhost is required), so the passcode cannot be checked.');
     if (input) input.disabled = true;
     if (submit) submit.disabled = true;
     return;
@@ -76,7 +76,7 @@ export function createGate(onUnlock) {
   }, 60);
 
   const reject = () => {
-    say('密码不对，再试一次。');
+    say('That passcode is not right. Try again.');
     if (!input) return;
     input.classList.remove('is-wrong');
     // Force a reflow so the shake animation restarts on a repeat miss.
@@ -117,7 +117,7 @@ export function createGate(onUnlock) {
         if (hex === expected) accept();
         else reject();
       } catch {
-        say('校验密码时出错了，请刷新页面重试。');
+        say('Something went wrong checking the passcode. Please reload the page and try again.');
       } finally {
         if (submit) submit.disabled = false;
       }
