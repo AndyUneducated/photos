@@ -117,11 +117,9 @@ If you ever want a real login, deploy `dist/` to Cloudflare Pages behind Cloudfl
 
 ## Why the photos are not on `main`
 
-Git keeps every version of every file it has ever committed. If the photos lived on `main`,
-deleting one would free **nothing** — the blob stays in history forever and the repository only
-grows.
-
-So the photos live on an orphan branch that is replaced wholesale on every publish:
+Git keeps every version of every file it has ever committed, so a photo deleted from a normal
+branch frees no space at all. The photos therefore live on an orphan branch that is replaced
+wholesale on every publish:
 
 ```mermaid
 flowchart TB
@@ -138,11 +136,8 @@ flowchart TB
     end
 ```
 
-Each publish writes a **single commit with no parent** and force-pushes it, so the repository is
-always exactly as large as the current gallery. Pushes stay cheap because git deduplicates blobs
-by content hash — re-committing hundreds of unchanged photos uploads nothing.
-
-Two consequences worth knowing:
+The repository is therefore always exactly as large as the current gallery, and pushes stay cheap
+because git deduplicates by content hash. Two consequences worth knowing:
 
 - **Locally**, the overwritten objects linger. **Manage → Reclaim local disk** runs
   `git reflog expire` plus `git gc --prune=now` to drop them.
@@ -166,57 +161,20 @@ git -C gallery reset --hard FETCH_HEAD
 
 ## Layout
 
-```
-photos/
-├── start.cmd                  Double-click to launch (installs Node / git / deps if missing)
-├── config.json                Title, budget, passcode hash, quality tiers
-├── MANIFEST.md                Data contract for manifest.json
-│
-├── studio/                    Local upload studio — never deployed
-│   ├── server.mjs             HTTP API, binds 127.0.0.1 only
-│   ├── public/                Studio UI
-│   └── lib/
-│       ├── heif.mjs           HEIF decode + colr colour info
-│       ├── color.mjs          Display P3 / BT.2020 / HLG → sRGB
-│       ├── process.mjs        Full pipeline for one photo
-│       ├── pool.mjs           Worker thread pool
-│       ├── exif.mjs           EXIF and GPS extraction
-│       ├── geocode.mjs        Reverse geocoding (Nominatim)
-│       ├── gallery.mjs        Manifest read/write, budget accounting
-│       └── git.mjs            Orphan branch commit and push
-│
-├── site/                      Astro static site — this is what ships
-├── gallery/                   Photos + manifest (worktree of the gallery branch)
-├── scripts/
-│   ├── setup-gallery.mjs      Create the gallery branch and worktree
-│   ├── collect.mjs            Splice photos into dist/, verify size and integrity
-│   ├── test-decode.mjs        Decode real camera files
-│   └── test-studio.mjs        End-to-end test of the publish path
-└── .github/workflows/deploy.yml
-```
+| Path | What lives there |
+| --- | --- |
+| `start.cmd` | Double-click to launch; installs Node / git / deps if missing |
+| `config.json` | Title, budget, passcode hash, quality tiers |
+| `MANIFEST.md` | Data contract for `manifest.json` |
+| `studio/` | The local upload app — never deployed |
+| `site/` | Astro static site; this is what ships |
+| `gallery/` | Photos + manifest, a worktree of the `gallery` branch |
+| `scripts/` | Setup, the post-build collect step, and the tests |
 
----
-
-## Technical notes
-
-**Why not let sharp read HEIC directly.** sharp's prebuilt binaries cannot. The official libvips
-builds ship with HEVC disabled over H.265 patent concerns, so `sharp('photo.HIF')` fails with an
-unsupported format error. Here libheif's WebAssembly build decodes, and sharp only ever sees raw
-RGBA — which also means no system-level dependency to install.
-
-**Colour management.** libheif hands back pixels with no colour space attached, so the `colr` box
-is parsed out of the HEIF container to identify Display P3 / BT.2020 / HLG / PQ and convert to
-sRGB. Skip this and an iPhone's P3 photos come out visibly oversaturated. HDR (HLG/PQ) is tone
-mapped to SDR with a note in the UI; if the result disappoints, export an SDR copy from the camera.
-
-**Orientation.** libheif applies the container's `irot`/`imir` properties but ignores the EXIF
-Orientation tag, and cameras disagree about which one they write. Auto-rotation therefore only
-happens when the pixel dimensions confirm it; everything else is left alone for the manual rotate
-buttons.
-
-**Concurrency.** Decoding a 61 MP HEIF needs several hundred MB of WASM heap, so the worker count
-is derived from both CPU and memory, capped at 4. Set `"concurrency": 1` in `config.json` if you
-hit out-of-memory errors.
+Each module under `studio/lib/` opens with a header comment explaining what it is for and why it
+works the way it does. Those comments are the reference for decoding, colour handling,
+orientation, concurrency and the git plumbing; this README deliberately does not restate them,
+so that there is only one copy to keep true.
 
 **Known scaling limit.** The home page is one static HTML document carrying roughly 1 KB per photo,
 mostly the inline blur placeholder. A few hundred photos is 200–400 KB and entirely fine; past a
