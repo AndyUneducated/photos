@@ -12,14 +12,14 @@
     "setup": "node scripts/setup-gallery.mjs"
   },
   "dependencies": {
-    "astro": "^5.14.1",
+    "astro": "^7.3.3",
     "exifr": "^7.1.3",
     "express": "^5.1.0",
     "libheif-js": "^1.19.8",
     "photoswipe": "^5.4.4",
     "sharp": "^0.35.4"
   },
-  "_overridesNote": "Astro lists sharp ^0.34.0 as an optional dependency, used only by astro:assets. We never use astro:assets (site/fixtures/check.mjs asserts it), so that second copy is dead weight carrying the libvips and libheif CVEs. The override collapses it onto the version the studio actually runs.",
+  "_overridesNote": "Astro pulls sharp in as an optional dependency for astro:assets, which this project never uses (site/fixtures/check.mjs asserts it). The override keeps that copy on the same version the studio runs, so a future Astro bump cannot quietly reintroduce an older sharp and its libvips/libheif CVEs.",
   "overrides": {
     "sharp": "^0.35.4"
   }
