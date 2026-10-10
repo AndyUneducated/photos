@@ -16,6 +16,9 @@ const IDENT = ['-c', 'user.name=test', '-c', 'user.email=test@localhost'];
  * A photo-like JPEG that is different for every seed, so each one hashes to a distinct photo id.
  * Smooth gradients plus grain, because flat colour compresses to nothing and would make the
  * quality-tier size comparisons meaningless.
+ *
+ * Carries camera EXIF like a real photo, including GPS, so tests can check what survives into the
+ * published files and what must not. The shooting time varies with the seed.
  */
 export async function syntheticPhoto(seed, { width = 1800, height = 1200 } = {}) {
   const raw = Buffer.alloc(width * height * 3);
@@ -36,7 +39,32 @@ export async function syntheticPhoto(seed, { width = 1800, height = 1200 } = {})
       raw[i + 2] = clamp(120 + 70 * Math.sin((x + y) / 260 + phase * 2) + grain);
     }
   }
-  return sharp(raw, { raw: { width, height, channels: 3 } }).blur(0.8).jpeg({ quality: 92 }).toBuffer();
+  return sharp(raw, { raw: { width, height, channels: 3 } })
+    .blur(0.8)
+    .withExif(syntheticExif(seed))
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
+
+export function syntheticTakenAt(seed) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `2026-05-${p(1 + (seed % 28))}T${p(seed % 24)}:${p(seed % 60)}:${p((seed >> 3) % 60)}`;
+}
+
+function syntheticExif(seed) {
+  const date = syntheticTakenAt(seed).replace(/-/g, ':').replace('T', ' ');
+  return {
+    IFD0: { Make: 'TESTCAM CORPORATION', Model: 'T-1000', DateTime: date },
+    IFD2: {
+      DateTimeOriginal: date,
+      ExposureTime: '1/250',
+      FNumber: '28/10',
+      ISOSpeedRatings: '200',
+      FocalLength: '35/1',
+      LensModel: 'Test 35mm F2.8',
+    },
+    IFD3: { GPSLatitudeRef: 'N', GPSLatitude: '37/1 46/1 30/1', GPSLongitudeRef: 'W', GPSLongitude: '122/1 25/1 10/1' },
+  };
 }
 
 function clamp(v) {
@@ -67,7 +95,7 @@ export async function createSandbox(label) {
     const mdir = join(dir, name);
     if (fresh) {
       await mkdir(mdir, { recursive: true });
-      for (const entry of ['studio', 'config.json', '.github', 'package.json', '.gitignore']) {
+      for (const entry of ['studio', 'scripts', 'config.json', '.github', 'package.json', '.gitignore']) {
         await cp(join(ROOT, entry), join(mdir, entry), {
           recursive: true,
           filter: (src) => !src.includes(join('studio', '.state')),
@@ -112,7 +140,8 @@ export async function createSandbox(label) {
         throw new Error(`server ${name} never came up:\n${m.log}`);
       },
       async stop() {
-        if (!m.server || m.server.exitCode !== null) return;
+        // A killed process reports a signalCode and leaves exitCode null.
+        if (!m.server || m.server.exitCode !== null || m.server.signalCode !== null) return;
         const exited = new Promise((r) => m.server.once('exit', r));
         m.server.kill();
         await exited;

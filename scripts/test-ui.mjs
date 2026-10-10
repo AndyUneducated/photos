@@ -7,24 +7,33 @@
  *     - a publish that conflicts with GitHub opens the dialog listing both sides; "Keep both" works
  *     - "Cancel" changes nothing
  *     - a push GitHub refuses shows a readable error with copyable technical details
- *   Site, against the last `npm run build` (dist/):
+ *   Site, built into dist/ from that sandbox's gallery:
+ *     - "Download" saves the album as a ZIP of the published files, named by shooting time and
+ *       carrying it in their EXIF; "All" gives one folder per album
+ *     - on a phone it hands the photos to the share sheet instead, and explains a refusal
+ *     - a photo that fails to download is named in the error
  *     - the lightbox info button is an outlined ring, not a filled disc, and toggles the caption
  *
  * Saves screenshots of each state and prints where. Skips cleanly when no Chromium browser exists.
+ * Leaves dist/ holding the sandbox build; `npm run build` makes the real one again.
  *
  *   node scripts/test-ui.mjs
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
+
+import exifr from 'exifr';
 
 import { createSandbox, sleep } from './test-helpers.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
+const ASTRO = join(ROOT, 'node_modules', 'astro', 'bin', 'astro.mjs');
 const SHOTS = join(tmpdir(), 'photos-ui-shots');
+const DOWNLOADS = join(tmpdir(), `photos-ui-downloads-${process.pid}`);
 const DEBUG_PORT = 9339;
 const PREVIEW_PORT = 4493;
 
@@ -99,7 +108,8 @@ try {
   await page.shot('4-published');
 
   // Cancel: make a conflict again and walk away from it.
-  await a.publish('A4', { push: false });
+  // A "/" in the title, like real ones ("Yellowstone & Teton/MILC"), for the ZIP folder check below.
+  await a.publishStaged(await a.stage('A4'), 'A4/MILC', { push: false });
   await b.publish('B2');
   await a.stage('A5');
   const headBefore = await a.head();
@@ -138,39 +148,134 @@ try {
   await sandbox.rejectPushes(false);
 
   // ------------------------------------------------------------ site
+  // Built the way CI builds it, from the sandbox studio's own gallery: its manifest, then its
+  // photo files under dist/p. That way the downloads below hold files the studio really made.
   console.log('\nSite');
-  if (!existsSync(join(ROOT, 'dist', 'index.html'))) {
-    console.log('  skipped: no dist/ (run npm run build first)');
-  } else {
-    preview = spawn(process.execPath, [join(ROOT, 'node_modules', 'astro', 'bin', 'astro.mjs'), 'preview', '--port', String(PREVIEW_PORT)], {
-      cwd: ROOT,
-      stdio: 'ignore',
-    });
-    const site = `http://localhost:${PREVIEW_PORT}/`;
-    for (let i = 0; i < 60 && !(await fetch(site).then((r) => r.ok, () => false)); i++) await sleep(250);
+  const galleryDir = join(a.dir, 'gallery');
+  const manifest = JSON.parse(await readFile(join(galleryDir, 'manifest.json'), 'utf8'));
+  await runNode([ASTRO, 'build', '--silent'], { PHOTOS_MANIFEST: join(galleryDir, 'manifest.json') });
+  await cp(join(galleryDir, 'albums'), join(ROOT, 'dist', 'p'), { recursive: true });
+  preview = spawn(process.execPath, [ASTRO, 'preview', '--port', String(PREVIEW_PORT)], { cwd: ROOT, stdio: 'ignore' });
+  const site = `http://localhost:${PREVIEW_PORT}/`;
+  for (let i = 0; i < 60 && !(await fetch(site).then((r) => r.ok, () => false)); i++) await sleep(250);
 
-    const config = JSON.parse(await readFile(join(ROOT, 'config.json'), 'utf8'));
-    await page.goto(site);
-    // The gate remembers an unlock as the passcode hash; skip typing it.
-    await page.eval(`localStorage.setItem('photos.unlock', ${JSON.stringify(config.passcodeHash || '')})`);
-    await page.goto(site);
-    await page.waitFor(`document.querySelector('a.tile')`, 'photo tiles');
-    await page.eval(`document.querySelector('a.tile').click()`);
-    await page.waitFor(`document.querySelector('.pswp__button--pswp-info svg circle')`, 'lightbox info button', 15000);
-    await sleep(600);
-    const icon = await page.eval(`(() => {
-      const s = getComputedStyle(document.querySelector('.pswp__button--pswp-info svg circle'));
-      return { fill: s.fill, stroke: s.stroke, width: s.strokeWidth };
-    })()`);
-    check('info icon ring is outlined, not filled', icon.fill === 'none' && icon.stroke !== 'none', JSON.stringify(icon));
-    const download = await page.eval(`getComputedStyle(document.querySelector('.pswp__button--download svg path')).fill`);
-    check('download icon is outlined too', download === 'none', download);
-    await page.shot('6-lightbox');
-    await page.eval(`document.querySelector('.pswp__button--pswp-info').click()`);
-    await page.waitFor(`document.querySelector('.pswp--info-open')`, 'info panel');
-    check('the info button opens the photo details', true);
-    await page.shot('7-lightbox-info');
-  }
+  await page.goto(site);
+  // The gate remembers an unlock as the passcode hash; skip typing it.
+  await page.eval(`localStorage.setItem('photos.unlock', ${JSON.stringify(manifest.site.passcodeHash || '')})`);
+  await page.goto(site);
+  await page.waitFor(`document.querySelector('a.tile img.is-loaded')`, 'photo tiles');
+  await page.shot('6-site-header');
+
+  // One album, as a ZIP (a desktop browser).
+  await rm(DOWNLOADS, { recursive: true, force: true });
+  await mkdir(DOWNLOADS, { recursive: true });
+  await browser.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS });
+  const album = manifest.albums.find((x) => x.photoCount > 0);
+  const albumPhotos = manifest.photos.filter((p) => p.albumId === album.id);
+  await page.eval(`document.querySelector('.chip[data-album="${album.id}"]').click()`);
+  await page.eval(`document.getElementById('album-download').click()`);
+  await page.waitFor(`document.querySelector('.dl-panel.is-done')`, 'album ZIP saved', 30000);
+  const zipName = `${safeName(album.title)}.zip`;
+  const panelText = await page.eval(`document.querySelector('.dl-panel').textContent`);
+  check('the panel says the ZIP was saved', panelText.includes(`Saved “${zipName}”`), panelText);
+  await page.shot('7-download-saved');
+  const one = await unzipList(await waitForFile(join(DOWNLOADS, zipName)), 'one');
+  check('the ZIP holds every photo of the album', one.length === albumPhotos.length, `${one.length} vs ${albumPhotos.length}`);
+  const expectedName = `${albumPhotos[0].takenAt.replace('T', ' ').replace(/:/g, '.')}.avif`;
+  const file = one.find((f) => f.name === expectedName);
+  check('files are named by shooting time', Boolean(file), `${one.map((f) => f.name).join(', ')} (expected ${expectedName})`);
+  const tags = file && await exifr.parse(file.data, { tiff: true, exif: true, gps: true, reviveValues: false });
+  check('a downloaded photo carries its shooting time', tags?.DateTimeOriginal === albumPhotos[0].takenAt.replace(/-/g, ':').replace('T', ' '), JSON.stringify(tags));
+  check('and no GPS position', Boolean(tags) && tags.GPSLatitude === undefined && tags.latitude === undefined);
+  const original = await readFile(join(galleryDir, 'albums', album.id, 'w', `${albumPhotos[0].id}.avif`));
+  check('the file is the published one, byte for byte', Boolean(file) && original.equals(file.data));
+
+  // Everything, one folder per album.
+  await page.eval(`document.querySelector('.dl-panel__close')?.click(); document.querySelector('.chip[data-album="all"]').click()`);
+  await page.eval(`document.getElementById('album-download').click()`);
+  await page.waitFor(`document.querySelector('.dl-panel.is-done')`, 'full ZIP saved', 30000);
+  const all = await unzipList(await waitForFile(join(DOWNLOADS, `${safeName(manifest.site.title)}.zip`)), 'all');
+  const folders = new Set(all.map((f) => f.path.split('/')[0]));
+  check('“All” puts each album in its own folder', folders.size === manifest.albums.length && all.length === manifest.photos.length,
+    `${folders.size} folders, ${all.length} files`);
+  check('a “/” in an album title does not split the folder', folders.has('A4-MILC'), [...folders].join(', '));
+
+  // A phone: the share sheet instead of a ZIP. Headless Chrome has no share sheet, so the page's
+  // navigator.share is replaced by one that records what it was given.
+  await page.eval(`(() => {
+    document.querySelector('.dl-panel__close')?.click();
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (q) => (q.includes('coarse') ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : real(q));
+    navigator.canShare = () => true;
+    navigator.share = async (data) => { window.__shared = data.files.map((f) => ({ name: f.name, type: f.type, size: f.size })); };
+    document.querySelector('.chip[data-album="${album.id}"]').click();
+    document.getElementById('album-download').click();
+  })()`);
+  await page.waitFor(`document.querySelector('.dl-panel__btn.is-primary')?.textContent === 'Save to Photos'`, 'Save to Photos button', 30000);
+  await page.shot('8-share-ready');
+  await page.eval(`document.querySelector('.dl-panel__btn.is-primary').click()`);
+  await page.waitFor(`document.querySelector('.dl-panel.is-done')`, 'share finished');
+  const shared = await page.eval('window.__shared');
+  check('on a phone the photos go to the share sheet', shared?.length === albumPhotos.length, JSON.stringify(shared?.slice(0, 2)));
+  check('shared as AVIF images with their names', Boolean(shared?.every((f) => f.type === 'image/avif' && f.name.endsWith('.avif'))));
+
+  await page.eval(`(() => {
+    document.querySelector('.dl-panel__close')?.click();
+    navigator.share = async () => { throw new DOMException('Permission denied', 'NotAllowedError'); };
+    document.getElementById('album-download').click();
+  })()`);
+  await page.waitFor(`document.querySelector('.dl-panel__btn.is-primary')?.textContent === 'Save to Photos'`, 'Save to Photos button', 30000);
+  await page.eval(`document.querySelector('.dl-panel__btn.is-primary').click()`);
+  await page.waitFor(`document.querySelector('.dl-panel.is-error')`, 'share failure');
+  const shareFail = await page.eval(`document.querySelector('.dl-panel').textContent`);
+  check('a refused share sheet explains itself and offers the ZIP', shareFail.includes('would not take') && shareFail.includes('Download ZIP'), shareFail);
+
+  // A photo that will not download: the panel must say which one and why.
+  const victim = albumPhotos[albumPhotos.length - 1];
+  const victimPath = join(ROOT, 'dist', 'p', album.id, 'w', `${victim.id}.avif`);
+  await rm(victimPath);
+  await page.goto(site); // also drops the share stubs
+  await page.waitFor(`document.querySelector('a.tile')`, 'photo tiles');
+  await page.eval(`document.querySelector('.chip[data-album="${album.id}"]').click(); document.getElementById('album-download').click()`);
+  await page.waitFor(`document.querySelector('.dl-panel.is-error')`, 'download failure', 30000);
+  const fail = await page.eval(`document.querySelector('.dl-panel').textContent`);
+  check('a missing photo is named in the error, with the reason', fail.includes('Could not download') && fail.includes('404') && fail.includes('Try again'), fail);
+  await page.shot('9-download-failed');
+  await cp(join(galleryDir, 'albums', album.id, 'w', `${victim.id}.avif`), victimPath);
+
+  // Narrow screen: the button shares the title row.
+  await browser.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await page.goto(site);
+  await page.waitFor(`document.querySelector('a.tile img.is-loaded')`, 'photo tiles');
+  const row = await page.eval(`(() => {
+    const b = document.getElementById('album-download').getBoundingClientRect();
+    const t = document.querySelector('.brand__title').getBoundingClientRect();
+    return { sameRow: Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2) < 8, right: Math.round(innerWidth - b.right) };
+  })()`);
+  check('on a phone the button sits at the end of the title row', row.sameRow && row.right < 40, JSON.stringify(row));
+  await page.shot('10-phone-header');
+  await browser.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+
+  // Lightbox.
+  await page.goto(site);
+  await page.waitFor(`document.querySelector('a.tile')`, 'photo tiles');
+  await page.eval(`document.querySelector('a.tile').click()`);
+  await page.waitFor(`document.querySelector('.pswp__button--pswp-info svg circle')`, 'lightbox info button', 15000);
+  await sleep(600);
+  const icon = await page.eval(`(() => {
+    const s = getComputedStyle(document.querySelector('.pswp__button--pswp-info svg circle'));
+    return { fill: s.fill, stroke: s.stroke, width: s.strokeWidth };
+  })()`);
+  check('info icon ring is outlined, not filled', icon.fill === 'none' && icon.stroke !== 'none', JSON.stringify(icon));
+  const downloadIcon = await page.eval(`getComputedStyle(document.querySelector('.pswp__button--download svg path')).fill`);
+  check('download icon is outlined too', downloadIcon === 'none', downloadIcon);
+  const single = await page.eval(`({ name: document.querySelector('.pswp__button--download').getAttribute('download'), file: document.querySelector('a.tile').dataset.file })`);
+  check('the single-photo download uses the same file name', Boolean(single.name) && single.name === single.file, JSON.stringify(single));
+  await page.shot('11-lightbox');
+  await page.eval(`document.querySelector('.pswp__button--pswp-info').click()`);
+  await page.waitFor(`document.querySelector('.pswp--info-open')`, 'info panel');
+  check('the info button opens the photo details', true);
+  await page.shot('12-lightbox-info');
 
   check('no uncaught errors in the page', browser.errors.length === 0, browser.errors.join(' | '));
 } catch (e) {
@@ -182,6 +287,7 @@ try {
   preview?.kill();
   await browser?.close();
   await sandbox.cleanup();
+  await rm(DOWNLOADS, { recursive: true, force: true }).catch(() => {});
 }
 
 console.log(`\nScreenshots: ${SHOTS}`);
@@ -289,6 +395,7 @@ async function launchBrowser() {
   return {
     page,
     errors,
+    send,
     async close() {
       ws.close();
       proc.kill();
@@ -296,6 +403,48 @@ async function launchBrowser() {
       await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
     },
   };
+}
+
+// ---------------------------------------------------------------- files
+
+function runNode(args, env) {
+  const r = spawnSync(process.execPath, args, { cwd: ROOT, env: { ...process.env, ...env }, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`${args.join(' ')} failed:\n${r.stdout}\n${r.stderr}`);
+}
+
+/** Waits for a browser download to land and stop growing. */
+async function waitForFile(path, timeout = 20000) {
+  const until = Date.now() + timeout;
+  let last = -1;
+  while (Date.now() < until) {
+    const size = existsSync(path) ? (await stat(path)).size : -1;
+    if (size > 0 && size === last) return path;
+    last = size;
+    await sleep(300);
+  }
+  throw new Error(`no download at ${path}`);
+}
+
+/** Unpacks with the system's own tool (see test-download.mjs for why not tar on Windows). */
+async function unzipList(zipPath, label) {
+  const out = join(DOWNLOADS, `unzipped-${label}`);
+  await mkdir(out, { recursive: true });
+  const r = process.platform === 'win32'
+    ? spawnSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${zipPath}' -DestinationPath '${out}'`], { encoding: 'utf8' })
+    : spawnSync('tar', ['-xf', zipPath, '-C', out], { encoding: 'utf8', env: { ...process.env, LC_ALL: 'en_US.UTF-8' } });
+  if (r.status !== 0) throw new Error(`could not unpack ${zipPath}: ${r.stderr}`);
+  const files = [];
+  for (const entry of await readdir(out, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const full = join(entry.parentPath, entry.name);
+    files.push({ path: relative(out, full).split(sep).join('/'), name: entry.name, data: await readFile(full) });
+  }
+  return files;
+}
+
+/** Mirrors safeName in site/src/scripts/download.js. */
+function safeName(text) {
+  return String(text).replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').replace(/^[\s.]+|[\s.]+$/g, '') || 'Photos';
 }
 
 function sameSet(actual, expected) {

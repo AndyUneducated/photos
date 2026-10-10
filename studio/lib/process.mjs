@@ -12,6 +12,7 @@ import sharp from 'sharp';
 import { decodeHeif, isHeif } from './heif.mjs';
 import { convertToSrgb, planColourConversion } from './color.mjs';
 import { readExif } from './exif.mjs';
+import { addExif, buildExif } from './avif-exif.mjs';
 
 // libvips caches decoded images across calls, which is counterproductive here: every photo is
 // touched exactly once and the cache just holds onto hundreds of megabytes.
@@ -101,11 +102,15 @@ export async function processPhoto(filePath, opts) {
     rgb().stats(),
   ]);
 
+  // Only the web file: it is the one visitors download. The block is built from the same summary
+  // the manifest stores, so it never carries GPS.
+  const tiff = buildExif({ takenAt: meta.takenAt, exif: meta.exif, width: web.info.width, height: web.info.height });
+
   return {
     id,
     sourceName: filePath,
     sourceBytes: source.length,
-    web: { data: webAvif, width: web.info.width, height: web.info.height },
+    web: { data: tiff ? addExif(webAvif, tiff) : webAvif, width: web.info.width, height: web.info.height },
     thumb: { data: thumb.data, width: thumb.info.width, height: thumb.info.height },
     lqip: `data:image/webp;base64,${lqip.toString('base64')}`,
     color: toHex(dominant.dominant),

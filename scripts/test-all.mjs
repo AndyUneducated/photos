@@ -45,8 +45,8 @@ await suite('site: a single album still shows its name', async () => {
 
 await suite('studio: stage, process, publish, delete', () => node(['scripts/test-studio.mjs']));
 await suite('studio: publishing from two computers', () => node(['scripts/test-sync.mjs']));
-// After the site builds: its lightbox check runs against the dist/ they leave behind.
-await suite('ui: studio and lightbox in a headless browser', () => node(['scripts/test-ui.mjs']));
+await suite('downloads: EXIF, ZIP, backfill', () => node(['scripts/test-download.mjs']));
+await suite('ui: studio, downloads and lightbox in a headless browser', () => node(['scripts/test-ui.mjs']));
 await suite('decoder: EXIF survives', () => node(['scripts/test-exif.mjs']));
 
 if (existsSync(join(ROOT, 'samples', 'nokia_ski.heic'))) {

@@ -6,10 +6,12 @@ import EmptyState from '../components/EmptyState.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import Gate from '../components/Gate.astro';
 import { loadManifest } from '../lib/manifest.js';
-import { formatDateTime, formatExif, locationLabel, osmUrl } from '../lib/format.js';
+import { downloadNames, formatDateTime, formatExif, locationLabel, osmUrl } from '../lib/format.js';
 
 const manifest = loadManifest();
-const { site, albums, photos } = manifest;
+const { site, albums } = manifest;
+const names = downloadNames(manifest.photos);
+const photos = manifest.photos.map((photo) => ({ ...photo, file: names.get(photo.id) }));
 
 // The lightbox needs caption/EXIF/location text, but there is no reason to ship
 // the raw manifest and the formatting logic to the browser: everything is

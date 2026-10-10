@@ -5,6 +5,7 @@
  */
 import { createGate } from './gate.js';
 import { createGrid } from './grid.js';
+import { createDownloader } from './download.js';
 import { createLightbox } from './lightbox.js';
 import { readUrl, writeUrl } from './url.js';
 
@@ -46,6 +47,8 @@ if (gridEl) {
   for (const chip of chips) {
     chip.addEventListener('click', () => selectAlbum(chip.dataset.album));
   }
+
+  createDownloader({ button: document.getElementById('album-download'), grid });
 
   // --- boot ---------------------------------------------------------------
 

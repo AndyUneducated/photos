@@ -121,9 +121,9 @@ export function createLightbox({ gallery, onPhotoChange }) {
         el.setAttribute('target', '_blank');
         const sync = () => {
           const data = pswp.currSlide && pswp.currSlide.data;
-          const id = currentId(pswp);
+          const element = data && data.element;
           el.href = (data && data.src) || '#';
-          el.setAttribute('download', id ? id + '.avif' : '');
+          el.setAttribute('download', (element && element.dataset.file) || '');
         };
         pswp.on('change', sync);
         sync();

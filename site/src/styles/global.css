@@ -92,6 +92,128 @@ html.is-locked body {
 }
 
 /* =====================================================================
+   Album download panel (built at runtime by scripts/download.js)
+   ===================================================================== */
+
+.dl-panel {
+  position: fixed;
+  right: max(var(--pad-x), env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 8000;
+  width: min(340px, calc(100vw - 2 * var(--pad-x)));
+  padding: 12px 14px 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--bg-raised) 92%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 18px 50px #0009;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.22s var(--ease),
+    transform 0.3s var(--ease-out);
+
+  &.is-in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dl-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dl-panel__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dl-panel__close {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin: -4px -6px -4px 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--fg);
+    background: var(--line-soft);
+  }
+}
+
+.dl-panel__bar {
+  height: 3px;
+  margin: 10px 0 8px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+
+  span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--fg);
+    transition: width 0.25s var(--ease);
+  }
+}
+
+.dl-panel.is-done .dl-panel__bar span {
+  background: var(--fg-dim);
+}
+
+.dl-panel.is-error .dl-panel__bar span {
+  background: var(--accent);
+}
+
+.dl-panel__text {
+  margin: 0;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+.dl-panel.is-error .dl-panel__text {
+  color: var(--fg);
+}
+
+.dl-panel__actions:not(:empty) {
+  display: flex;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.dl-panel__btn {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+
+  &.is-primary {
+    background: var(--fg);
+    border-color: var(--fg);
+    color: var(--bg);
+    font-weight: 600;
+  }
+}
+
+/* =====================================================================
    PhotoSwipe overrides
    ===================================================================== */
 

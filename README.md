@@ -115,6 +115,21 @@ the 75 → 84 step on a synthetic frame rather than measured on the Sony sample.
 The tier is recorded alongside the staged file, so re-encoding one photo with the rotate button
 does not silently drop it back to standard.
 
+### What visitors download
+
+**Download** in the site header fetches every photo of the album being viewed (all of them under
+**All**). On a phone or tablet it then offers **Save to Photos**, which opens the system share
+sheet; on a computer it saves one ZIP, with a folder per album under **All**. The lightbox's
+download button saves the single photo.
+
+The files are the same 2560 px AVIFs the site shows, named by shooting time
+(`2026-10-02 10.37.29.avif`). They carry the shooting time, camera, lens and exposure in their
+EXIF, so Photos files them on the day they were taken, but never GPS. iOS 16+, macOS 13+, Android
+12+ and current desktop browsers open AVIF; Windows needs the free AV1 extension in older builds.
+
+Photos published before this EXIF was added get it from `node scripts/backfill-exif.mjs` (close
+the studio first). It edits only the files' metadata, not their pixels, and publishes the result.
+
 ---
 
 ## Privacy boundary
@@ -225,7 +240,7 @@ git -C gallery reset --hard FETCH_HEAD
 `npm test` runs every test that can run on the machine: the site build against the fixtures, the
 studio's publish flow, and a two-computer sandbox (a local bare repository standing in for GitHub)
 covering conflicts, rollbacks and crash recovery. With Chrome or Edge installed it also clicks
-through the conflict dialog, error display and lightbox in a headless browser. The decoder tests
+through the conflict dialog, error display, album download and lightbox in a headless browser. The decoder tests
 also run when camera files are present in `samples/`. None of them touch the real gallery or push anywhere.
 
 Each module under `studio/lib/` opens with a header comment explaining what it is for and why it

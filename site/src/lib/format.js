@@ -97,6 +97,27 @@ export function formatExif(exif) {
   return parts.join(' · ');
 }
 
+/**
+ * File names for downloads: `2026-10-02 10.37.29.avif`, so a folder of them sorts by shooting
+ * time. Bursts share a second, so repeats within an album get ` (2)`, ` (3)`. Photos with no
+ * date fall back to their id.
+ *
+ * @returns {Map<string, string>} photo id -> file name
+ */
+export function downloadNames(photos) {
+  const names = new Map();
+  const used = new Map();
+  for (const photo of photos) {
+    const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(photo.takenAt || '');
+    const stem = m ? `${m[1]} ${m[2]}.${m[3]}.${m[4]}` : photo.id;
+    const key = `${photo.albumId}/${stem}`;
+    const n = (used.get(key) || 0) + 1;
+    used.set(key, n);
+    names.set(photo.id, `${stem}${n > 1 ? ` (${n})` : ''}.avif`);
+  }
+  return names;
+}
+
 export function osmUrl(location) {
   if (!location) return '';
   const { lat, lon } = location;
