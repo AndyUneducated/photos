@@ -1,9 +1,12 @@
 <#
-  Brings a machine from "nothing installed" to "studio running in the browser".
+  Brings a Windows machine from "nothing installed" to "studio running in the browser".
 
   Designed to be safe to run repeatedly: every step checks whether it is needed first. The point
-  is that moving to a new PC should mean copying this folder and double-clicking start.cmd, with
-  no manual Node or git installation.
+  is that moving to a new PC should mean copying this folder (or cloning it) and double-clicking
+  start.cmd, with no manual Node or git installation.
+
+  This file only installs Node and git. Everything after that (dependencies, the repository, the
+  gallery branch) is scripts/prepare.mjs, which the macOS launcher shares.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -43,9 +46,16 @@ if (-not (Test-Command 'node')) {
     throw 'Node.js still cannot be found after installing it. Close this window and double-click start.cmd again (only a new window picks up the updated PATH).'
 }
 
-$nodeMajor = (& node -e 'process.stdout.write(process.versions.node.split(".")[0])')
-if ([int]$nodeMajor -lt 20) {
-    throw "Node.js 20 or newer is required, but this machine has v$nodeMajor. Please upgrade Node.js and try again."
+$nodeOld = (& node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.stdout.write(String(a < 20 || (a === 20 && b < 11)))')
+if ($nodeOld -eq 'true') {
+    Write-Step "Upgrading Node.js (this machine has $(& node -v); 20.11 or newer is needed)"
+    if (Test-Command 'winget') {
+        winget upgrade --id OpenJS.NodeJS.LTS --exact --accept-source-agreements --accept-package-agreements --disable-interactivity
+        Update-PathFromRegistry
+    }
+    else {
+        throw "Node.js 20.11 or newer is required, but this machine has $(& node -v). Please upgrade Node.js and try again."
+    }
 }
 Write-Ok "Node.js $(& node -v)"
 
@@ -57,45 +67,12 @@ if (-not (Test-Command 'git')) {
 }
 Write-Ok (& git --version)
 
-# ---------------------------------------------------------------- dependencies
+# ---------------------------------------------------------------- everything else
 
 Push-Location $root
 try {
-    $needInstall = $false
-    if (-not (Test-Path (Join-Path $root 'node_modules'))) {
-        $needInstall = $true
-    }
-    else {
-        # Reinstall when the lockfile is newer than the installed tree, which is what happens after
-        # a git pull that changed dependencies.
-        $lock = Join-Path $root 'package-lock.json'
-        $stamp = Join-Path $root 'node_modules\.package-lock.json'
-        if ((Test-Path $lock) -and (Test-Path $stamp)) {
-            if ((Get-Item $lock).LastWriteTimeUtc -gt (Get-Item $stamp).LastWriteTimeUtc) {
-                $needInstall = $true
-            }
-        }
-    }
-
-    if ($needInstall) {
-        Write-Step 'Installing dependencies (about 1-2 minutes on the first run)'
-        if (Test-Path (Join-Path $root 'package-lock.json')) { npm ci } else { npm install }
-        if ($LASTEXITCODE -ne 0) { throw 'Installing dependencies failed.' }
-    }
-    else {
-        Write-Ok 'Dependencies are already up to date'
-    }
-
-    # ------------------------------------------------------------ gallery branch
-
-    if (-not (Test-Path (Join-Path $root '.git'))) {
-        Write-Step 'Initializing the git repository'
-        git init -b main | Out-Null
-    }
-
-    Write-Step 'Checking the gallery branch'
-    node scripts/setup-gallery.mjs
-    if ($LASTEXITCODE -ne 0) { throw 'Setting up the gallery branch failed.' }
+    node scripts/prepare.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Setup did not finish; the message above explains why.' }
 
     # ------------------------------------------------------------ run
 

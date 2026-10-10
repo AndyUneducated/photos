@@ -20,8 +20,8 @@ const OUT_DIR = 'samples/out';
 const OPTS = {
   webMaxEdge: 2560,
   thumbMaxEdge: 640,
-  webQuality: 58,
-  thumbQuality: 50,
+  webQuality: 66,
+  thumbQuality: 55,
 };
 
 const files = process.argv.slice(2);

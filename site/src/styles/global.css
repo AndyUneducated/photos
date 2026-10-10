@@ -111,8 +111,11 @@ html.is-locked body {
 }
 
 /* Stroke-drawn icons for the two buttons we add, so they match the hairline
-   weight of the rest of the chrome instead of PhotoSwipe's solid glyphs. */
-.pswp-icn {
+   weight of the rest of the chrome instead of PhotoSwipe's solid glyphs.
+   Scoped under .pswp because photoswipe/style.css is loaded after this file and
+   its single-class `.pswp__icn { fill }` would otherwise win the tie and paint
+   the info ring as a solid white disc. */
+.pswp .pswp-icn {
   fill: none;
   stroke: var(--pswp-icon-color);
   stroke-width: 1.7;
@@ -120,7 +123,11 @@ html.is-locked body {
   stroke-linejoin: round;
 }
 
-.pswp__button--pswp-info.is-active .pswp-icn {
+.pswp .pswp-icn__dot {
+  stroke-width: 2.6;
+}
+
+.pswp .pswp__button--pswp-info.is-active .pswp-icn {
   stroke: var(--accent);
 }
 

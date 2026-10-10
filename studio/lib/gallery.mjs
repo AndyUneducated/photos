@@ -1,7 +1,7 @@
 /**
  * Reads and writes the gallery: `gallery/manifest.json` plus the AVIF files beside it.
  *
- * `gallery/` is a git worktree tracking the `gallery` branch (see `scripts/setup-gallery.mjs`),
+ * `gallery/` is a git worktree tracking the `gallery` branch (see `ensureGalleryWorktree` in `git.mjs`),
  * which is what keeps deleted photos from accumulating in `main`'s history forever.
  */
 
@@ -59,7 +59,7 @@ export async function saveManifest(manifest) {
   sortManifest(manifest);
 
   // Compare against what is already on disk with updatedAt held at its old value. Bumping the
-  // stamp unconditionally would make every save byte-different, so publishGallery's tree check
+  // stamp unconditionally would make every save byte-different, so commitGallery's tree check
   // could never see a no-op and saving unchanged settings would commit, push and rebuild the site.
   const previous = await readFile(MANIFEST_PATH, 'utf8').catch(() => null);
   const oldStamp = previousStamp(previous);

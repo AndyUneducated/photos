@@ -60,7 +60,7 @@ flowchart TD
 
 ## Daily use
 
-Double-click `start.cmd`. The studio opens in a browser.
+Double-click `start.cmd` on Windows or `start.command` on a Mac. The studio opens in a browser.
 
 | Step | What you do | Notes |
 | --- | --- | --- |
@@ -68,6 +68,30 @@ Double-click `start.cmd`. The studio opens in a browser.
 | 2 | Pick a quality tier | Applies to this batch, see below |
 | 3 | Wait for decoding | Untick anything you do not want; fix orientation with the rotate buttons |
 | 4 | Name the album, publish | GitHub Actions rebuilds; live in a minute or two |
+
+Every long operation shows its milestones in the corner (checking GitHub, copying photos,
+saving a snapshot, uploading with a percentage), so a stall is visible and a failure says how far
+it got. Errors give a plain explanation and what to do, with a **Technical details** block that
+can be copied into a bug report.
+
+Nothing is lost by closing the window part-way. Photos already copied in or processed reappear on
+the next start, and a publish that was cut off is either confirmed (if GitHub had already received
+it) or rolled back so it can simply be run again.
+
+### Setting up a new computer
+
+Clone the repository (or copy the folder) and double-click the start script. On first run it
+installs what is missing — Node.js and git through winget on Windows, or through Homebrew on a Mac
+(installing Homebrew itself if needed, which asks for your Mac password) — then the npm
+dependencies, then downloads the gallery that is already on GitHub. It also talks to GitHub once
+in the terminal window, which is when a new machine signs in.
+
+A folder copied from another operating system is fine: the image library is native code, and the
+start script notices it was built for the wrong platform and reinstalls it.
+
+If macOS will not open `start.command` (for example after copying the folder from Windows, which
+drops the executable bit), run it once from Terminal: `bash start.command`. Without the start
+scripts, `npm start` does the same setup and then launches the studio.
 
 The bar in the top right is the GitHub Pages quota. The budget is 800 MB by default and the hard
 Pages ceiling is 1 GB — **exceeding it makes deployment fail**, so delete old albums under
@@ -80,12 +104,13 @@ Sony frame at 2560 px, total of web image plus thumbnail:
 
 | Tier | AVIF quality | Per photo | vs standard | Photos in 800 MB |
 | --- | --- | --- | --- | --- |
-| Standard | 58 / 50 | 225 KB | — | ~3,600 |
-| High | 66 / 55 | 291 KB | +29% | ~2,800 |
-| Max | 75 / 60 | 390 KB | +73% | ~2,100 |
+| Standard | 66 / 55 | 291 KB | — | ~2,800 |
+| High | 75 / 60 | 390 KB | +34% | ~2,100 |
+| Max | 84 / 66 | ~525 KB | ~+80% | ~1,550 |
 
 Those counts come from a single night shot, which compresses better than a detailed daylight
-scene — treat them as an upper bound rather than a promise.
+scene — treat them as an upper bound rather than a promise. The max figure is extrapolated from
+the 75 → 84 step on a synthetic frame rather than measured on the Sony sample.
 
 The tier is recorded alongside the staged file, so re-encoding one photo with the rotate button
 does not silently drop it back to standard.
@@ -149,10 +174,36 @@ because git deduplicates by content hash. Two consequences worth knowing:
 
 Because every publish is a force-push of a parentless commit, git has no ancestry with which to
 protect you: publishing from a machine that missed someone else's upload would silently delete
-their photos. The studio therefore fetches and compares the committed tree before pushing, and
-refuses if they differ. If it stops you:
+their photos. The studio therefore remembers what GitHub held the last time this machine synced
+(`refs/studio/synced`) and checks GitHub before every publish, delete or settings change:
 
-```powershell
+| GitHub vs this computer | What happens |
+| --- | --- |
+| Same, or only this computer changed | Publishes normally |
+| Only GitHub changed | Brings GitHub's photos in first, then publishes on top — no question asked, nothing is lost |
+| Both changed | Stops before touching anything and shows which albums differ, then lets you choose |
+
+The three choices when both changed:
+
+- **Keep both** — take GitHub's gallery, re-apply what this computer added or deleted since it
+  last synced, then add this change.
+- **Overwrite GitHub with this computer** — the dialog names every album this would remove from
+  the site.
+- **Cancel** — nothing changes anywhere; photos waiting to publish stay in the studio.
+
+The answer only counts for the GitHub state you were shown: the push uses `--force-with-lease`, so
+if another publish lands while you are deciding, you are asked again rather than overwriting it.
+
+Any failure after the check — GitHub rejecting the push, the network dropping, the studio being
+closed — rolls the gallery back to exactly where it started, so there is never a "published"
+state that GitHub did not receive. A commit that did get made but never reached GitHub (from an
+older version of the studio, say) is detected on start, and the studio offers to upload it.
+
+A machine that predates this tracking has no record of its last sync, so for its first conflict
+the studio cannot tell "added here" from "deleted there". **Keep both** then keeps every album from
+either side. If you know this computer is simply out of date, make it match GitHub instead:
+
+```sh
 git -C gallery fetch origin gallery
 git -C gallery reset --hard FETCH_HEAD
 ```
@@ -163,13 +214,19 @@ git -C gallery reset --hard FETCH_HEAD
 
 | Path | What lives there |
 | --- | --- |
-| `start.cmd` | Double-click to launch; installs Node / git / deps if missing |
+| `start.cmd` / `start.command` | Double-click to launch on Windows / macOS; installs Node, git and deps if missing |
 | `config.json` | Title, budget, passcode hash, quality tiers |
 | `MANIFEST.md` | Data contract for `manifest.json` |
 | `studio/` | The local upload app — never deployed |
 | `site/` | Astro static site; this is what ships |
 | `gallery/` | Photos + manifest, a worktree of the `gallery` branch |
-| `scripts/` | Setup, the post-build collect step, and the tests |
+| `scripts/` | Setup (`bootstrap.*` install Node and git, `prepare.mjs` does the rest), the post-build collect step, and the tests |
+
+`npm test` runs every test that can run on the machine: the site build against the fixtures, the
+studio's publish flow, and a two-computer sandbox (a local bare repository standing in for GitHub)
+covering conflicts, rollbacks and crash recovery. With Chrome or Edge installed it also clicks
+through the conflict dialog, error display and lightbox in a headless browser. The decoder tests
+also run when camera files are present in `samples/`. None of them touch the real gallery or push anywhere.
 
 Each module under `studio/lib/` opens with a header comment explaining what it is for and why it
 works the way it does. Those comments are the reference for decoding, colour handling,
@@ -191,4 +248,6 @@ thousand or so the page approaches 1 MB and would need pagination or lazy loadin
 | Deployment rejected, site too large | Delete old albums under **Manage**, then **Reclaim local disk** |
 | Out of memory while processing | Set `"concurrency": 1` in `config.json` |
 | Passcode change did not take effect | Save under **Manage → Site settings**; that publishes immediately. Family must enter the new passcode |
-| Publish refused, remote disagrees | Another machine published. See *Publishing from more than one machine* above |
+| Publish stopped with "GitHub has changes this computer does not have" | Another machine published. See *Publishing from more than one machine* above |
+| "GitHub refused to let this computer push" | Sign in once from a terminal: `git push origin main` (on a Mac, `gh auth login && gh auth setup-git`) |
+| `bad interpreter: /bin/bash^M` on a Mac | The scripts lost their line endings in a copy; re-clone, or run `git checkout -- .` |

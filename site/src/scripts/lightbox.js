@@ -17,7 +17,7 @@ const ICON_DOWNLOAD = `<svg class="pswp__icn pswp-icn" viewBox="0 0 32 32" width
 <path d="M16 7v13.6"/><path d="M10.6 15.2L16 20.6l5.4-5.4"/><path d="M7.4 23v1.6c0 .9.7 1.6 1.6 1.6h14c.9 0 1.6-.7 1.6-1.6V23"/></svg>`;
 
 const ICON_INFO = `<svg class="pswp__icn pswp-icn" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-<circle cx="16" cy="16" r="10.4"/><path d="M16 21.6v-6.4"/><path d="M16 11.1h.01"/></svg>`;
+<circle cx="16" cy="16" r="10.4"/><path d="M16 21.4v-6.2"/><path class="pswp-icn__dot" d="M16 11.2h.01"/></svg>`;
 
 function readMeta() {
   const node = document.getElementById('photo-meta');

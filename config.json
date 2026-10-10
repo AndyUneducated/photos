@@ -8,19 +8,19 @@
   "concurrency": null,
   "webMaxEdge": 2560,
   "thumbMaxEdge": 640,
-  "_quality": "Chosen per batch at upload time. The numbers are AVIF quality; measured total size relative to standard (2560px Sony sample): high +29%, max +73%",
+  "_quality": "Chosen per batch at upload time. The numbers are AVIF quality; see the Quality tiers table in README.md for measured sizes",
   "quality": {
     "standard": {
-      "web": 58,
-      "thumb": 50
-    },
-    "high": {
       "web": 66,
       "thumb": 55
     },
-    "max": {
+    "high": {
       "web": 75,
       "thumb": 60
+    },
+    "max": {
+      "web": 84,
+      "thumb": 66
     }
   },
   "reverseGeocode": true

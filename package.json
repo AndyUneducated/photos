@@ -4,12 +4,17 @@
   "private": true,
   "type": "module",
   "description": "Private-ish family photo gallery. HEIF in, AVIF out, static site on GitHub Pages.",
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
+    "start": "node scripts/prepare.mjs && node studio/server.mjs",
     "studio": "node studio/server.mjs",
     "dev": "astro dev",
     "build": "astro build && node scripts/collect.mjs",
     "preview": "astro preview",
-    "setup": "node scripts/setup-gallery.mjs"
+    "setup": "node scripts/prepare.mjs",
+    "test": "node scripts/test-all.mjs"
   },
   "dependencies": {
     "astro": "^7.3.3",

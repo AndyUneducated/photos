@@ -25,17 +25,58 @@ const state = {
 
 // ------------------------------------------------------------------ plumbing
 
+/**
+ * A failure as the server describes it: `error` (the headline), `hint` (what to do), `code`, and
+ * `detail` (command, stderr, stack — for whoever debugs it). See studio/lib/errors.mjs.
+ */
+class ApiError extends Error {
+  constructor(payload, status) {
+    super(payload?.error || `Request failed (${status})`);
+    this.payload = { ...payload, error: this.message };
+    this.status = status;
+  }
+}
+
+/** Thrown once a failure has already been shown to the user, so callers only need to clean up. */
+class HandledError extends Error {}
+
 async function api(path, options = {}) {
-  const res = await fetch(path, {
-    ...options,
-    headers: options.body && !(options.body instanceof Blob)
-      ? { 'Content-Type': 'application/json', ...options.headers }
-      : options.headers,
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      ...options,
+      headers: options.body && !(options.body instanceof Blob)
+        ? { 'Content-Type': 'application/json', ...options.headers }
+        : options.headers,
+    });
+  } catch (err) {
+    throw new ApiError({
+      error: 'The studio is not responding.',
+      code: 'studio-unreachable',
+      hint: 'Check that the studio window (the terminal running it) is still open. If it closed, start it again; nothing that already finished is lost.',
+      detail: { request: `${options.method || 'GET'} ${path}`, error: String(err) },
+    }, 0);
+  }
   const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new ApiError({
+      error: 'The studio sent back a response it could not read.',
+      code: 'bad-response',
+      detail: { request: `${options.method || 'GET'} ${path}`, status: res.status, body: text.slice(0, 2000) },
+    }, res.status);
+  }
+  if (!res.ok) throw new ApiError(data, res.status);
   return data;
+}
+
+/** Normalises anything thrown into the server's error shape. */
+function errorPayload(err) {
+  if (err instanceof ApiError) return err.payload;
+  if (err && typeof err === 'object' && 'error' in err && !(err instanceof Error)) return err;
+  return { error: err?.message || String(err), code: 'client-error', detail: { stack: err?.stack } };
 }
 
 // ------------------------------------------------------------------ toasts
@@ -59,9 +100,18 @@ function toast(message, kind = 'info') {
   icon.className = 'toast__icon';
   icon.setAttribute('aria-hidden', 'true');
 
+  const body = document.createElement('div');
+  body.className = 'toast__body';
+
   const text = document.createElement('p');
   text.className = 'toast__text';
   text.textContent = message;
+
+  // Everything below the headline is rebuilt on each update; the headline node stays put so
+  // screen readers announce changes to it rather than a whole new toast.
+  const extra = document.createElement('div');
+  extra.className = 'toast__extra';
+  body.append(text, extra);
 
   const close = document.createElement('button');
   close.className = 'toast__close';
@@ -69,7 +119,7 @@ function toast(message, kind = 'info') {
   close.setAttribute('aria-label', 'Close');
   close.textContent = '\u00d7';
 
-  el.append(icon, text, close);
+  el.append(icon, body, close);
   $('toasts').append(el);
   // Next frame, so the entry transition has a start state to animate from.
   requestAnimationFrame(() => el.classList.add('is-in'));
@@ -80,7 +130,30 @@ function toast(message, kind = 'info') {
       text.textContent = nextMessage;
       el.className = `toast toast--${nextKind} is-in`;
       kind = nextKind;
+      extra.replaceChildren();
       handle.arm();
+      return handle;
+    },
+    /** Shows the milestones of a server operation; see renderSteps. */
+    steps(steps) {
+      extra.replaceChildren(renderSteps(steps));
+      return handle;
+    },
+    /** Turns this toast into an error: headline, what went wrong, what to do, and the raw detail. */
+    fail(headline, err) {
+      const payload = errorPayload(err);
+      handle.update(headline, 'error');
+      extra.append(errorBlock(payload));
+      return handle;
+    },
+    /** Adds a button, e.g. "Upload now". */
+    action(label, onClick) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'toast__action';
+      btn.textContent = label;
+      btn.onclick = () => { handle.close(); onClick(); };
+      extra.append(btn);
       return handle;
     },
     arm() {
@@ -100,6 +173,223 @@ function toast(message, kind = 'info') {
 
   close.addEventListener('click', handle.close);
   return handle.arm();
+}
+
+const STEP_MARK = { pending: '○', running: '◌', done: '✓', skipped: '–', failed: '✕', cancelled: '–' };
+
+function renderSteps(steps) {
+  const ol = document.createElement('ol');
+  ol.className = 'steps';
+  for (const step of steps) {
+    const li = document.createElement('li');
+    li.className = `step step--${step.state}`;
+
+    const mark = document.createElement('span');
+    mark.className = 'step__mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = STEP_MARK[step.state] || '○';
+
+    const label = document.createElement('span');
+    label.className = 'step__label';
+    label.textContent = step.label;
+    if (step.state === 'running' && step.startedAt) {
+      const secs = Math.round((Date.now() - step.startedAt) / 1000);
+      if (secs >= 3) label.textContent += ` (${secs}s)`;
+    }
+
+    li.append(mark, label);
+    if (step.detail && step.state !== 'pending') {
+      const detail = document.createElement('span');
+      detail.className = 'step__detail';
+      detail.textContent = step.detail;
+      li.append(detail);
+    }
+    if (step.state === 'running' && typeof step.progress === 'number') {
+      const bar = document.createElement('span');
+      bar.className = 'step__bar';
+      const fill = document.createElement('i');
+      fill.style.width = `${Math.round(step.progress * 100)}%`;
+      bar.append(fill);
+      li.append(bar);
+    }
+    ol.append(li);
+  }
+  return ol;
+}
+
+/** The readable part of an error, plus a collapsed, copyable block for debugging. */
+function errorBlock(payload) {
+  const wrap = document.createElement('div');
+  wrap.className = 'errblock';
+
+  const what = document.createElement('p');
+  what.className = 'errblock__what';
+  what.textContent = payload.error;
+  wrap.append(what);
+
+  if (payload.hint) {
+    const hint = document.createElement('p');
+    hint.className = 'errblock__hint';
+    hint.textContent = payload.hint;
+    wrap.append(hint);
+  }
+
+  if (payload.steps) wrap.append(renderSteps(payload.steps));
+
+  const debug = { code: payload.code, ...(payload.rolledBack ? { rolledBack: true } : {}), ...(payload.detail || {}) };
+  wrap.append(detailsBlock(debug));
+  return wrap;
+}
+
+function detailsBlock(debug) {
+  const details = document.createElement('details');
+  details.className = 'errblock__details';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Technical details';
+  const pre = document.createElement('pre');
+  const text = JSON.stringify(debug, null, 2);
+  pre.textContent = text;
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'errblock__copy';
+  copy.textContent = 'Copy';
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      copy.textContent = 'Copied';
+    } catch {
+      copy.textContent = 'Select the text and copy it';
+    }
+  };
+  details.append(summary, copy, pre);
+  return details;
+}
+
+// ------------------------------------------------------------------ operations
+
+/**
+ * Runs a server operation (publish, delete, save settings, sync) with a live milestone list.
+ *
+ * Resolves with `{ result, toast }` once it is done — the caller words the success message.
+ * Everything else is handled here and surfaces as a HandledError: failures are shown with their
+ * detail, and a conflict with GitHub opens the conflict dialog and retries with the user's choice.
+ */
+async function runOperation(path, body = {}) {
+  let resolution = null;
+  for (;;) {
+    const t = toast('Starting…', 'progress');
+    let started;
+    try {
+      started = await api(path, {
+        method: 'POST',
+        body: JSON.stringify(resolution ? { ...body, resolution } : body),
+      });
+    } catch (err) {
+      t.fail('Could not start', err);
+      throw new HandledError(err.message);
+    }
+
+    let op;
+    try {
+      op = await followOperation(started.operation, t);
+    } catch (err) {
+      t.fail(`${started.operation.title} — lost track of progress`, err);
+      throw new HandledError(err.message);
+    }
+
+    if (op.state === 'done') return { result: op.result, toast: t };
+
+    if (op.state === 'conflict') {
+      t.close();
+      const choice = await askConflict(op.error.conflict, op.title);
+      if (choice === 'abort') {
+        toast('Cancelled. Nothing was changed, here or on GitHub. Your photos are still in the studio for later.', 'info');
+        throw new HandledError('cancelled');
+      }
+      resolution = { action: choice, remoteCommit: op.error.conflict.remoteCommit };
+      continue;
+    }
+
+    t.fail(`${op.title} — failed`, { ...op.error, steps: op.steps });
+    throw new HandledError(op.error?.error);
+  }
+}
+
+/** Polls an operation until it leaves `running`, keeping the toast's milestones current. */
+async function followOperation(op, t) {
+  let failures = 0;
+  for (;;) {
+    t.update(op.title, op.state === 'running' ? 'progress' : kindFor(op.state)).steps(op.steps);
+    if (op.state !== 'running') return op;
+    await new Promise((r) => setTimeout(r, 500));
+    try {
+      op = await api(`/api/ops/${op.id}`);
+      failures = 0;
+    } catch (err) {
+      // One missed poll is noise; several in a row means the studio itself went away.
+      if (++failures >= 6) throw err;
+    }
+  }
+}
+
+function kindFor(state) {
+  return state === 'done' ? 'ok' : state === 'running' ? 'progress' : 'error';
+}
+
+/**
+ * Shows how GitHub and this computer differ and asks what to do. Resolves 'merge', 'force' or
+ * 'abort'. Closing the dialog any other way (Esc) counts as abort.
+ */
+function askConflict(conflict, title) {
+  const dialog = $('conflict-dialog');
+  $('conflict-title').textContent = `${title}: GitHub has changes this computer does not have`;
+
+  const when = (iso) => (iso ? new Date(iso).toLocaleString() : 'unknown time');
+  $('conflict-summary').textContent =
+    `GitHub was last published ${when(conflict.remote.date)} (“${conflict.remote.subject || 'no message'}”) and holds ` +
+    `${conflict.remote.albums} albums / ${conflict.remote.photos} photos. This computer holds ` +
+    `${conflict.local.albums} albums / ${conflict.local.photos} photos. Usually this means someone published from another computer.`;
+
+  const list = (id, items, format) => {
+    const box = $(id);
+    box.hidden = items.length === 0;
+    const ul = box.querySelector('ul');
+    ul.replaceChildren(...items.map((item) => {
+      const li = document.createElement('li');
+      li.textContent = format(item);
+      return li;
+    }));
+  };
+  const album = (a) => `${a.title} · ${a.date} · ${a.photoCount} photos${a.why ? ` — ${a.why}` : ''}`;
+  list('conflict-only-remote', conflict.onlyRemote, album);
+  list('conflict-only-local', conflict.onlyLocal, album);
+  list('conflict-changed', conflict.changed, (c) =>
+    `${c.title}: ${c.remotePhotos} photos on GitHub, ${c.localPhotos} here${c.remoteTitle !== c.title ? ` (called “${c.remoteTitle}” on GitHub)` : ''}`);
+  $('conflict-none').hidden = conflict.onlyRemote.length + conflict.onlyLocal.length + conflict.changed.length > 0;
+  $('conflict-nobase').hidden = conflict.hasBase;
+
+  const lost = conflict.onlyRemote.filter((a) => a.why !== 'deleted on this computer');
+  $('conflict-force-note').textContent = lost.length
+    ? `Removes from the site: ${lost.map((a) => `“${a.title}”`).join(', ')}.`
+    : 'GitHub becomes an exact copy of this computer.';
+
+  $('conflict-debug').replaceChildren(detailsBlock({ remoteCommit: conflict.remoteCommit, remote: conflict.remote, local: conflict.local, hasBase: conflict.hasBase }));
+
+  return new Promise((resolve) => {
+    const done = (choice) => {
+      dialog.removeEventListener('close', onClose);
+      dialog.close();
+      resolve(choice);
+    };
+    const onClose = () => resolve('abort');
+    dialog.addEventListener('close', onClose);
+    $('conflict-merge').onclick = () => done('merge');
+    $('conflict-force').onclick = () => {
+      if (!lost.length || confirm(`Overwrite GitHub? ${$('conflict-force-note').textContent} This cannot be undone.`)) done('force');
+    };
+    $('conflict-abort').onclick = () => done('abort');
+    dialog.showModal();
+  });
 }
 
 function fmtBytes(n) {
@@ -125,18 +415,89 @@ async function refresh() {
 
   $('site-link').href = state.config.domain ? `https://${state.config.domain}/` : '#';
 
+  if (!state.loadedOnce) {
+    state.loadedOnce = true;
+    restoreSession(data);
+  }
+
   if (!data.git.worktreeReady) {
     const t = toast('The gallery branch is not set up yet. Setting it up…', 'progress');
     try {
       await api('/api/setup', { method: 'POST' });
       t.update('The gallery branch is ready.', 'ok');
     } catch (err) {
-      t.update(`Setup failed: ${err.message}`, 'error');
+      t.fail('Setting up the gallery branch failed', err);
     }
   } else if (!data.git.remote && !state.warnedNoRemote) {
     // refresh() runs after every operation; this one is a standing condition, not an event.
     state.warnedNoRemote = true;
     toast('No origin remote is configured. Publishing only commits to the local repository, and the site will not update.', 'info');
+  } else if (data.git.unpushed && !data.operation && !state.warnedUnpushed) {
+    state.warnedUnpushed = true;
+    toast('This computer has gallery changes that never reached GitHub (an earlier upload did not finish), so the site does not show them yet.', 'info')
+      .action('Upload them now', syncNow);
+  }
+}
+
+/**
+ * Picks up where the last session left off: photos already copied in or processed are still on
+ * disk, an operation may still be running, and the server may have rolled back an interrupted one.
+ */
+function restoreSession(data) {
+  if (data.recovery) {
+    const r = data.recovery;
+    if (r.outcome === 'completed') {
+      toast(`“${r.title}” was interrupted when the studio stopped, but it had already reached GitHub, so it has been kept.`, 'ok');
+    } else if (r.outcome === 'rolled-back') {
+      toast(`“${r.title}” was interrupted when the studio stopped. The gallery has been put back exactly as it was before; any photos it was publishing are still below, so you can publish again.`, 'info');
+    } else {
+      toast('', 'error').fail('Could not recover an interrupted operation', r.error);
+    }
+  }
+
+  let restored = 0;
+  for (const meta of data.staged || []) {
+    if (state.files.has(meta.fileId)) continue;
+    const ready = meta.state === 'ready' && meta.photo;
+    state.files.set(meta.fileId, {
+      fileId: meta.fileId,
+      name: meta.name,
+      bytes: meta.photo?.sourceBytes,
+      state: ready ? 'ready' : 'staged',
+      photo: meta.photo,
+      progress: 1,
+    });
+    if (ready) state.selected.add(meta.fileId);
+    restored++;
+  }
+  if (restored) {
+    renderFileList();
+    if ([...state.files.values()].some((f) => f.state === 'ready')) {
+      $('panel-review').hidden = false;
+      renderReview();
+    }
+    toast(`Restored ${restored} photos from your last session. Ones that were not processed yet can be processed again.`, 'info');
+  }
+
+  if (data.operation) {
+    const t = toast(data.operation.title, 'progress');
+    followOperation(data.operation, t)
+      .then((op) => {
+        if (op.state === 'done') t.update(`${op.title} — finished.`, 'ok');
+        else t.fail(`${op.title} — ${op.state === 'conflict' ? 'stopped: GitHub has other changes' : 'failed'}`, { ...op.error, steps: op.steps });
+        return refresh();
+      })
+      .catch((err) => t.fail('Lost track of the running operation', err));
+  }
+}
+
+async function syncNow() {
+  try {
+    const { result, toast: t } = await runOperation('/api/sync');
+    await refresh();
+    t.update(result.git.pushed ? 'GitHub is up to date. The site updates in a minute or two.' : 'GitHub already had everything.', 'ok');
+  } catch (err) {
+    if (!(err instanceof HandledError)) toast('', 'error').fail('Sync failed', err);
   }
 }
 
@@ -171,14 +532,44 @@ function onFilesPicked(fileList) {
   uploadQueued();
 }
 
+/**
+ * Copies picked files into the studio one at a time. A second drop while this runs just adds to
+ * the queue that the running loop is already walking.
+ */
 async function uploadQueued() {
+  if (state.uploading) return;
+  state.uploading = true;
+  const t = toast('Copying photos into the studio…', 'progress');
+  let failed = 0;
+
+  const seen = [];
+  const report = () => {
+    const batch = [...seen, ...[...state.files.values()].filter((f) => f.state === 'queued')];
+    const done = seen.filter((f) => f.state !== 'uploading');
+    const total = batch.reduce((s, f) => s + f.bytes, 0);
+    const sent = seen.reduce((s, f) => s + (f.state === 'uploading' ? f.bytes * f.progress : f.bytes), 0);
+    t.update('Copying photos into the studio', 'progress').steps([
+      {
+        label: `Copy ${batch.length} originals into the studio`,
+        state: 'running',
+        detail: `${done.length} of ${batch.length} files · ${fmtBytes(sent)} of ${fmtBytes(total)}`,
+        progress: total ? sent / total : 0,
+      },
+      { label: 'Choose a quality, then start processing', state: 'pending' },
+    ]);
+  };
+
   for (const [key, entry] of state.files) {
     if (entry.state !== 'queued') continue;
     entry.state = 'uploading';
+    entry.onProgress = report;
+    seen.push(entry);
     renderFileList();
+    report();
 
     try {
       const result = await uploadOne(entry);
+      entry.state = 'staged';
       // Re-key on the server-assigned id so every later call refers to the staged copy.
       state.files.delete(key);
       state.files.set(result.fileId, {
@@ -192,9 +583,20 @@ async function uploadQueued() {
     } catch (err) {
       entry.state = 'failed';
       entry.error = err.message;
+      failed++;
+      toast('', 'error').fail(`Could not copy “${entry.name}” into the studio`, err);
     }
     renderFileList();
   }
+
+  state.uploading = false;
+  const ready = [...state.files.values()].filter((f) => f.state === 'staged').length;
+  t.update(
+    failed
+      ? `${ready} photos copied in; ${failed} could not be (see the messages above). Add those again, or carry on without them.`
+      : `${ready} photos copied in. Choose a quality, then press Start processing.`,
+    failed ? 'error' : 'ok',
+  );
   renderUploadActions();
 }
 
@@ -207,15 +609,26 @@ function uploadOne(entry) {
       if (e.lengthComputable) {
         entry.progress = e.loaded / e.total;
         renderFileList();
+        entry.onProgress?.();
       }
     };
     xhr.onload = () => {
       let payload = {};
       try { payload = JSON.parse(xhr.responseText); } catch { /* handled below */ }
       if (xhr.status >= 200 && xhr.status < 300 && payload.fileId) resolve(payload);
-      else reject(new Error(payload.error || `Upload failed (${xhr.status})`));
+      else {
+        reject(new ApiError(payload.error ? payload : {
+          error: `The studio rejected the file (HTTP ${xhr.status}).`,
+          detail: { status: xhr.status, body: xhr.responseText.slice(0, 2000) },
+        }, xhr.status));
+      }
     };
-    xhr.onerror = () => reject(new Error('Upload interrupted'));
+    xhr.onerror = () => reject(new ApiError({
+      error: 'The copy was interrupted before it finished.',
+      code: 'stage-interrupted',
+      hint: 'Check that the studio is still running, then add the photo again.',
+      detail: { file: entry.name, bytes: entry.bytes, sent: Math.round(entry.progress * entry.bytes) },
+    }, 0));
     xhr.send(entry.file);
   });
 }
@@ -239,8 +652,10 @@ function renderFileList() {
     const st = document.createElement('span');
     st.className = 'state';
     st.textContent =
-      entry.state === 'uploading' ? `${Math.round(entry.progress * 100)}%`
-      : entry.state === 'staged' ? 'Ready'
+      entry.state === 'uploading' ? `Copying ${Math.round(entry.progress * 100)}%`
+      : entry.state === 'staged' ? 'Copied in'
+      : entry.state === 'processing' || entry.state === 'writing' || entry.state === 'pending' ? 'Processing'
+      : entry.state === 'ready' ? 'Processed'
       : entry.state === 'failed' ? entry.error || 'Failed'
       : 'Waiting';
 
@@ -274,7 +689,8 @@ async function startProcessing() {
   $('process-btn').disabled = true;
 
   const quality = document.querySelector('input[name="quality"]:checked')?.value || 'standard';
-  state.processToast = toast(`Processing 0 / ${fileIds.length} photos…`, 'progress');
+  state.processToast = toast(`Processing ${fileIds.length} photos`, 'progress');
+  state.processStartedAt = Date.now();
 
   try {
     const { jobId } = await api('/api/process', {
@@ -284,10 +700,30 @@ async function startProcessing() {
     state.jobId = jobId;
     pollJob();
   } catch (err) {
-    state.processToast.update(`Processing failed: ${err.message}`, 'error');
+    state.processToast.fail('Processing could not start', err);
     state.processToast = null;
     $('process-btn').disabled = false;
   }
+}
+
+/** The processing milestones, in the same shape as a server operation's steps. */
+function processSteps(job) {
+  const total = job.items.length;
+  const done = job.items.filter((i) => i.state === 'ready' || i.state === 'failed').length;
+  const failed = job.items.filter((i) => i.state === 'failed').length;
+  const current = job.items.filter((i) => i.state === 'processing' || i.state === 'writing').map((i) => i.name);
+  const running = job.state === 'running';
+  return [
+    { label: 'Copy the originals into the studio', state: 'done' },
+    {
+      label: `Decode, colour-correct and compress ${total} photos`,
+      state: running ? 'running' : failed === total ? 'failed' : 'done',
+      startedAt: state.processStartedAt,
+      detail: `${done} of ${total} done${failed ? `, ${failed} failed` : ''}${current.length ? ` · now: ${current.join(', ')}` : ''}`,
+      progress: total ? done / total : 0,
+    },
+    { label: 'Review, name the album, and publish', state: running ? 'pending' : 'running' },
+  ];
 }
 
 function pollJob() {
@@ -304,11 +740,13 @@ function pollJob() {
         const failed = job.items.filter((i) => i.state === 'failed').length;
         const ready = job.items.filter((i) => i.state === 'ready').length;
         if (state.processToast) {
-          if (failed) {
+          if (job.error) {
+            state.processToast.fail('Processing stopped', job.error);
+          } else if (failed) {
             state.processToast.update(
-              `${failed} photos failed to process — see the cards below. The other ${ready} can still be published.`,
+              `${failed} photos failed to process — each card below says why. The other ${ready} can still be published.`,
               'error',
-            );
+            ).steps(processSteps(job));
           } else {
             state.processToast.update(`${ready} photos processed. Review them, then publish.`, 'ok');
           }
@@ -318,12 +756,10 @@ function pollJob() {
     } catch (err) {
       clearInterval(state.polling);
       state.polling = null;
-      if (state.processToast) {
-        state.processToast.update(`Could not read processing progress: ${err.message}`, 'error');
-        state.processToast = null;
-      } else {
-        toast(`Could not read processing progress: ${err.message}`, 'error');
-      }
+      (state.processToast || toast('', 'error')).fail('Lost track of the processing progress', err);
+      state.processToast = null;
+      $('progress').hidden = true;
+      $('process-btn').disabled = false;
     }
   }, 600);
 }
@@ -334,6 +770,7 @@ function applyJob(job) {
     if (!entry) continue;
     entry.state = item.state;
     entry.error = item.error;
+    entry.errorDetail = item.errorDetail;
     if (item.photo) entry.photo = item.photo;
     if (item.state === 'failed') state.selected.delete(item.fileId);
   }
@@ -342,8 +779,9 @@ function applyJob(job) {
   $('progress-fill').style.width = `${(done / job.items.length) * 100}%`;
   $('progress-label').textContent = `${done} / ${job.items.length}`;
   if (state.processToast && job.state === 'running') {
-    state.processToast.update(`Processing ${done} / ${job.items.length} photos…`, 'progress');
+    state.processToast.update(`Processing ${job.items.length} photos`, 'progress').steps(processSteps(job));
   }
+  renderFileList();
 
   renderReview();
 }
@@ -442,6 +880,7 @@ function renderCard(entry) {
     err.className = 'card-error';
     err.textContent = entry.error;
     body.append(err);
+    if (entry.errorDetail) body.append(detailsBlock(entry.errorDetail));
   }
 
   if (entry.photo) {
@@ -511,7 +950,7 @@ async function rotate(entry, degrees) {
     state.rotations.set(entry.fileId, Date.now());
   } catch (err) {
     entry.state = previous;
-    toast(`Rotation failed: ${err.message}`, 'error');
+    toast('', 'error').fail(`Rotating “${entry.name}” failed`, err);
   }
   renderReview();
 }
@@ -530,19 +969,15 @@ async function publish() {
   }
 
   $('publish-btn').disabled = true;
-  const t = toast('Writing the album and pushing to GitHub…', 'progress');
 
   try {
-    const result = await api('/api/publish', {
-      method: 'POST',
-      body: JSON.stringify({
-        fileIds,
-        title: $('album-title').value,
-        date: $('album-date').value,
-        showLocation,
-        coverFileId: state.coverFileId,
-        captions,
-      }),
+    const { result, toast: t } = await runOperation('/api/publish', {
+      fileIds,
+      title: $('album-title').value,
+      date: $('album-date').value,
+      showLocation,
+      coverFileId: state.coverFileId,
+      captions,
     });
 
     for (const id of fileIds) state.files.delete(id);
@@ -563,7 +998,7 @@ async function publish() {
     t.update(
       result.git?.pushed
         ? `Published ${result.added} photos to “${result.album.title}”. GitHub Actions is building; the site updates in a minute or two.`
-        : `Committed ${result.added} photos to “${result.album.title}” locally, but nothing was pushed (no remote configured yet).`,
+        : `Saved ${result.added} photos to “${result.album.title}” on this computer only, because no GitHub remote is configured yet.`,
       'ok',
     );
 
@@ -574,8 +1009,9 @@ async function publish() {
       );
     }
   } catch (err) {
-    t.update(`Publish failed: ${err.message}`, 'error');
+    if (!(err instanceof HandledError)) toast('', 'error').fail('Publishing failed', err);
     $('publish-btn').disabled = false;
+    await refresh().catch(() => {});
   }
 }
 
@@ -660,9 +1096,8 @@ async function deleteSelectedAlbums() {
   if (!confirm(`Delete “${titles}”? The photos are removed from the site and the repository, and this cannot be undone.`)) return;
 
   $('delete-albums-btn').disabled = true;
-  const t = toast('Deleting and pushing…', 'progress');
   try {
-    const result = await api('/api/albums/delete', { method: 'POST', body: JSON.stringify({ ids }) });
+    const { result, toast: t } = await runOperation('/api/albums/delete', { ids });
     await refresh();
     t.update(
       result.git?.pushed
@@ -671,18 +1106,18 @@ async function deleteSelectedAlbums() {
       'ok',
     );
   } catch (err) {
-    t.update(`Delete failed: ${err.message}`, 'error');
+    if (!(err instanceof HandledError)) toast('', 'error').fail('Deleting failed', err);
+    await refresh().catch(() => {});
   }
 }
 
 async function reclaim() {
   $('reclaim-btn').disabled = true;
-  const t = toast('Reclaiming git space…', 'progress');
   try {
-    const r = await api('/api/reclaim', { method: 'POST' });
+    const { result: r, toast: t } = await runOperation('/api/reclaim');
     t.update(`Reclaimed ${fmtBytes(r.freed)}; the local repository is now ${fmtBytes(r.after)}.`, 'ok');
   } catch (err) {
-    t.update(`Reclaim failed: ${err.message}`, 'error');
+    if (!(err instanceof HandledError)) toast('', 'error').fail('Reclaiming disk space failed', err);
   }
   $('reclaim-btn').disabled = false;
 }
@@ -696,14 +1131,13 @@ async function saveSettings() {
   if ($('set-passcode').value) body.passcode = $('set-passcode').value;
 
   $('save-settings-btn').disabled = true;
-  const t = toast('Saving and pushing…', 'progress');
   try {
-    const r = await api('/api/settings', { method: 'POST', body: JSON.stringify(body) });
+    const { result: r, toast: t } = await runOperation('/api/settings', body);
     const changedPasscode = Boolean(body.passcode);
     $('set-passcode').value = '';
     await refresh();
 
-    if (!r.git?.changed) {
+    if (!r.git?.changed && !r.git?.pushed) {
       t.update('No settings changed.', 'ok');
     } else {
       // Everyone's saved unlock is the old hash, so changing the passcode signs all of them out.
@@ -716,7 +1150,8 @@ async function saveSettings() {
       );
     }
   } catch (err) {
-    t.update(`Save failed: ${err.message}`, 'error');
+    if (!(err instanceof HandledError)) toast('', 'error').fail('Saving settings failed', err);
+    await refresh().catch(() => {});
   }
   $('save-settings-btn').disabled = false;
 }
@@ -768,11 +1203,11 @@ $('tab-manage-btn').addEventListener('click', () => {
   if (!panel.hidden) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
-// Measured on a 61MP Sony HIF at 2560px: 225 KB, 291 KB and 390 KB per photo.
+// On a 61MP Sony HIF at 2560px: 291 KB and 390 KB per photo measured, ~525 KB estimated for max.
 const QUALITY_HINTS = {
-  standard: 'Smallest files, good for everyday sharing.',
-  high: 'About 29% larger than standard, with sturdier detail.',
-  max: 'About 73% larger than standard, holds up when zoomed in.',
+  standard: 'Clean detail at a sensible size; right for most albums.',
+  high: 'About 34% larger than standard, with sturdier fine texture.',
+  max: 'About 80% larger than standard, holds up when zoomed in.',
 };
 
 function renderQualityHint() {
@@ -789,4 +1224,4 @@ $('delete-albums-btn').addEventListener('click', deleteSelectedAlbums);
 $('reclaim-btn').addEventListener('click', reclaim);
 $('save-settings-btn').addEventListener('click', saveSettings);
 
-refresh().catch((err) => toast(`Could not reach the local server: ${err.message}`, 'error'));
+refresh().catch((err) => toast('', 'error').fail('Could not load the studio’s state', err));

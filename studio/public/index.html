@@ -132,6 +132,47 @@
   </section>
 </main>
 
+<!-- Shown when GitHub has changes this computer does not (usually a publish from another
+     computer). Nothing has been changed when this opens; every choice is made here. -->
+<dialog id="conflict-dialog" class="conflict">
+  <h2 id="conflict-title">GitHub has changes this computer does not have</h2>
+  <p class="hint" id="conflict-summary"></p>
+
+  <div class="conflict__lists">
+    <section id="conflict-only-remote" hidden>
+      <h3>On GitHub, not on this computer</h3>
+      <ul></ul>
+    </section>
+    <section id="conflict-only-local" hidden>
+      <h3>On this computer, not on GitHub</h3>
+      <ul></ul>
+    </section>
+    <section id="conflict-changed" hidden>
+      <h3>Albums that differ</h3>
+      <ul></ul>
+    </section>
+    <p class="hint" id="conflict-none" hidden>The album lists match, but the files or settings differ.</p>
+    <p class="hint" id="conflict-nobase" hidden>This computer has no record of when it last matched GitHub, so the studio cannot tell whether an album was added on one side or deleted on the other. “Keep both” keeps every album from either side; delete any unwanted ones afterwards under Manage.</p>
+  </div>
+
+  <div class="conflict__choices">
+    <button class="primary-btn" id="conflict-merge" type="button">
+      Keep both
+      <small>Bring in what is on GitHub, then add this change on top. Nothing is lost.</small>
+    </button>
+    <button class="danger-btn" id="conflict-force" type="button">
+      Overwrite GitHub with this computer
+      <small id="conflict-force-note"></small>
+    </button>
+    <button class="ghost-btn" id="conflict-abort" type="button">
+      Cancel
+      <small>Change nothing, here or on GitHub. Photos waiting to publish stay in the studio.</small>
+    </button>
+  </div>
+
+  <div id="conflict-debug"></div>
+</dialog>
+
 <script type="module" src="/app.js"></script>
 </body>
 </html>

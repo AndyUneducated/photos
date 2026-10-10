@@ -41,8 +41,10 @@ const FIXTURE_MANIFEST = path.join(ROOT, 'site', 'fixtures', 'manifest.json');
 
 // Real data always wins, so fixtures can never leak onto the live site. Once the gallery exists
 // but is empty, `PHOTOS_FIXTURES=1` is the way to get the fixture data back for local design work.
-const SOURCES =
-  process.env.PHOTOS_FIXTURES === '1'
+// `PHOTOS_MANIFEST=<path>` builds from an arbitrary manifest; the tests use it.
+const SOURCES = process.env.PHOTOS_MANIFEST
+  ? [path.resolve(process.env.PHOTOS_MANIFEST)]
+  : process.env.PHOTOS_FIXTURES === '1'
     ? [FIXTURE_MANIFEST, GALLERY_MANIFEST]
     : [GALLERY_MANIFEST, FIXTURE_MANIFEST];
 

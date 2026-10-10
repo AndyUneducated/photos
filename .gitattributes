@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings or macOS refuses to run them ("bad interpreter: /bin/bash^M"),
+# and the Windows launchers must keep CRLF or cmd.exe misreads them.
+*.sh       text eol=lf
+*.command  text eol=lf
+*.cmd      text eol=crlf
+*.ps1      text eol=crlf

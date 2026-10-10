@@ -85,7 +85,7 @@ export async function runBatch(tasks, { opts, concurrency, onEvent = () => {}, i
             results.push(entry);
             onEvent({ type: 'done', ...entry });
           } else {
-            const entry = { taskId: msg.taskId, ok: false, error: msg.error, filePath: task?.filePath };
+            const entry = { taskId: msg.taskId, ok: false, error: msg.error, stack: msg.stack, filePath: task?.filePath };
             results.push(entry);
             onEvent({ type: 'failed', ...entry });
           }
@@ -100,7 +100,7 @@ export async function runBatch(tasks, { opts, concurrency, onEvent = () => {}, i
           worker.busy = null;
           if (task) {
             active--;
-            const entry = { taskId: task.taskId, ok: false, error: err.message, filePath: task.filePath };
+            const entry = { taskId: task.taskId, ok: false, error: err.message, stack: err.stack, filePath: task.filePath };
             results.push(entry);
             onEvent({ type: 'failed', ...entry });
           }

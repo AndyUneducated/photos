@@ -13,8 +13,10 @@ interface Props {
 }
 
 const { title, tagline, albums, total } = Astro.props;
-// With one album the chips would just be "All" and a duplicate of it.
+// With one album the chips would just be "All" and a duplicate of it, so that album gets a
+// static label instead; visitors should still see which album they are looking at.
 const showFilter = albums.length > 1;
+const soleAlbum = albums.length === 1 ? albums[0] : null;
 ---
 
 <header class="header">
@@ -40,6 +42,17 @@ const showFilter = albums.length > 1;
             ))}
           </div>
         </nav>
+      )
+    }
+
+    {
+      soleAlbum && (
+        <div class="album-label" aria-label="Album">
+          <span class="chip is-static">
+            <span class="chip__label">{soleAlbum.title}</span>
+            <span class="chip__count">{soleAlbum.photoCount}</span>
+          </span>
+        </div>
       )
     }
   </div>
@@ -154,6 +167,27 @@ const showFilter = albums.length > 1;
     }
   }
 
+  .chip.is-static {
+    cursor: default;
+    max-width: 100%;
+
+    &:hover {
+      color: var(--fg-dim);
+      border-color: var(--line);
+    }
+
+    .chip__label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .album-label {
+    display: flex;
+    min-width: 0;
+    padding-block: 2px 9px;
+  }
+
   .chip__count {
     font-size: 11px;
     font-variant-numeric: tabular-nums;
@@ -197,6 +231,12 @@ const showFilter = albums.length > 1;
     .filter__track {
       padding-block: 0;
       margin-left: auto;
+    }
+
+    .album-label {
+      flex: 1 1 auto;
+      justify-content: flex-end;
+      padding-block: 0;
     }
   }
 

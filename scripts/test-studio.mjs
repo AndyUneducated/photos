@@ -1,24 +1,36 @@
 /**
  * End-to-end test of the studio's publish flow: stage a file, process it, publish it, and verify
- * that the manifest, the AVIF files and the git commit all came out right. Cleans up after itself.
+ * that the manifest, the AVIF files and the git commit all came out right. Cleans up after itself:
+ * the gallery branch, its worktree and config.json are put back exactly as they were.
+ *
+ * Everything here runs with push disabled; scripts/test-sync.mjs covers GitHub interaction.
  *
  *   node scripts/test-studio.mjs [path-to-photo]
  */
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import { syntheticPhoto } from './test-helpers.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = 4479;
 const BASE = `http://127.0.0.1:${PORT}`;
 
-const sample = process.argv[2] || (await firstSample());
+// Generated rather than taken from samples/: a sample that has really been published would be
+// refused as a duplicate, and a fresh clone has no samples at all. The seed makes it unique.
+let sample = process.argv[2];
 if (!sample) {
-  console.error('No test photo found. Put one in samples/, or pass its path as an argument.');
-  process.exit(1);
+  const dir = join(tmpdir(), `photos-test-${process.pid}`);
+  await mkdir(dir, { recursive: true });
+  sample = join(dir, 'synthetic.jpg');
+  await writeFile(sample, await syntheticPhoto(Date.now() % 1e9));
 }
+
+const galleryHeadBefore = (await git(['rev-parse', 'refs/heads/gallery'])).trim();
 
 let failures = 0;
 function check(label, condition, detail = '') {
@@ -98,7 +110,7 @@ try {
   await fetch(`${BASE}/api/stage/${staged2.fileId}`, { method: 'DELETE' });
 
   // ---------------------------------------------------------------- publish
-  const published = await post('/api/publish', {
+  const publishOp = await runOp('/api/publish', {
     fileIds: [staged.fileId],
     title: 'Automated test album',
     showLocation: false,
@@ -106,7 +118,14 @@ try {
     captions: { [staged.fileId]: 'Test caption' },
     push: false,
   });
-  check('publish succeeded', published.added === 1, JSON.stringify(published).slice(0, 200));
+  const published = publishOp.result || {};
+  check('publish succeeded', published.added === 1, JSON.stringify(publishOp.error || publishOp).slice(0, 600));
+  const stepStates = Object.fromEntries(publishOp.steps.map((s) => [s.id, s.state]));
+  check(
+    'publish reports its milestones',
+    stepStates.photos === 'done' && stepStates.manifest === 'done' && stepStates.commit === 'done' && stepStates.push === 'skipped',
+    JSON.stringify(stepStates),
+  );
 
   const albumId = published.album.id;
   check('album id has a date prefix', /^\d{4}-\d{2}-\d{2}/.test(albumId), albumId);
@@ -148,10 +167,19 @@ try {
   check('gallery branch carries the build workflow', lf(shipped) === lf(onMain), `${lf(shipped).length} vs ${lf(onMain).length}`);
 
   const stagingLeft = await readdir(join(ROOT, 'studio', '.state', 'staging')).catch(() => []);
-  check('staging directory cleared after publish', stagingLeft.length === 0, stagingLeft.join(','));
+  check('published photo cleared from staging', !stagingLeft.includes(staged.fileId), stagingLeft.join(','));
+
+  // ---------------------------------------------------------------- errors
+  const bad = await fetch(`${BASE}/api/stage?name=notes.txt`, { method: 'POST', body: 'x' });
+  const badBody = await bad.json();
+  check(
+    'errors carry a readable message, a hint and debug detail',
+    bad.status === 415 && badBody.error.includes('notes.txt') && badBody.hint && badBody.detail?.stack,
+    JSON.stringify(badBody).slice(0, 200),
+  );
 
   // ---------------------------------------------------------------- delete
-  const deleted = await post('/api/albums/delete', { ids: [albumId], push: false });
+  const deleted = (await runOp('/api/albums/delete', { ids: [albumId], push: false })).result || {};
   check('album deleted', deleted.removed === 1, JSON.stringify(deleted).slice(0, 200));
   check('usage back to the original after delete', deleted.budget.usedBytes === usedBefore);
   check('album directory removed', !(await exists(join(ROOT, 'gallery', 'albums', albumId))));
@@ -163,7 +191,7 @@ try {
   const configBefore = await readFile(configPath, 'utf8');
   try {
     const probe = 'test-passcode-' + Date.now();
-    const saved = await post('/api/settings', { passcode: probe, push: false });
+    const saved = (await runOp('/api/settings', { passcode: probe, push: false })).result || {};
     check('saving settings produced a commit', saved.git?.changed === true, JSON.stringify(saved.git));
 
     const wantHash = createHash('sha256').update(probe, 'utf8').digest('hex');
@@ -177,24 +205,25 @@ try {
     check('the new hash really made it into the commit', JSON.parse(committed).site.passcodeHash === wantHash);
     check('gallery still has exactly one commit', (await git(['rev-list', '--count', 'refs/heads/gallery'])).trim() === '1');
 
-    const again = await post('/api/settings', { passcode: probe, push: false });
+    const again = (await runOp('/api/settings', { passcode: probe, push: false })).result || {};
     check('saving again produces no empty commit', again.git?.changed === false, JSON.stringify(again.git));
   } finally {
-    // Put the real hash back on disk, then save once with no passcode field so the manifest and
-    // the gallery commit get re-stamped from the restored config.
     await writeFile(configPath, configBefore, 'utf8');
-    await post('/api/settings', { push: false });
   }
-
-  const restored = JSON.parse(await readFile(join(ROOT, 'gallery', 'manifest.json'), 'utf8'));
-  check('passcode restored after the test', restored.site.passcodeHash === JSON.parse(configBefore).passcodeHash);
 } catch (err) {
   failures++;
   console.log(`\nThe test threw an exception: ${err.message}`);
   console.log(err.stack);
 } finally {
   server.kill();
+  // Every commit above was local-only; put the branch back so the test leaves no trace for the
+  // next real publish to push.
+  await git(['-C', 'gallery', 'reset', '--hard', '--quiet', galleryHeadBefore]);
+  await git(['-C', 'gallery', 'clean', '-fd', '--quiet']);
 }
+
+const headAfter = (await git(['rev-parse', 'refs/heads/gallery'])).trim();
+check('gallery branch restored after the test', headAfter === galleryHeadBefore, `${headAfter} vs ${galleryHeadBefore}`);
 
 if (serverLog.includes('Error') || serverLog.includes('error')) {
   console.log(`\n--- server log ---\n${serverLog.trim()}`);
@@ -207,14 +236,6 @@ process.exit(failures === 0 ? 0 : 1);
 
 function basename(p) {
   return p.split(/[\\/]/).pop();
-}
-
-async function firstSample() {
-  const entries = await readdir(join(ROOT, 'samples'), { withFileTypes: true }).catch(() => []);
-  const match = entries.find(
-    (e) => e.isFile() && /\.(hif|heic|heif|jpg|jpeg|png|tif|tiff)$/i.test(e.name),
-  );
-  return match ? join(ROOT, 'samples', match.name) : null;
 }
 
 async function waitForServer() {
@@ -237,6 +258,17 @@ async function waitForJob(jobId) {
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error('Timed out waiting for the processing job');
+}
+
+/** Starts a long operation and waits for it to settle; see studio/lib/operations.mjs. */
+async function runOp(path, body) {
+  const { opId } = await post(path, body);
+  for (let i = 0; i < 600; i++) {
+    const op = await get(`/api/ops/${opId}`);
+    if (op.state !== 'running') return op;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(`Timed out waiting for ${path}`);
 }
 
 async function get(path) {
