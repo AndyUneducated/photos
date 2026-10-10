@@ -27,8 +27,11 @@ export function createDownloader({ button, grid }) {
     const album = grid.album;
     const tiles = grid.tiles.filter((t) => album === 'all' || t.dataset.album === album);
     if (!tiles.length) return;
-    const title = titles[album] || titles.all || 'Photos';
-    const folders = album === 'all' && new Set(tiles.map((t) => t.dataset.album)).size > 1;
+    // A site with one album has no filter, so "all" is that album and should carry its name.
+    const albumsHere = new Set(tiles.map((t) => t.dataset.album));
+    const only = albumsHere.size === 1 ? [...albumsHere][0] : null;
+    const title = titles[album === 'all' ? only : album] || titles.all || 'Photos';
+    const folders = album === 'all' && albumsHere.size > 1;
 
     busy = true;
     button.disabled = true;

@@ -277,6 +277,28 @@ try {
   check('the info button opens the photo details', true);
   await page.shot('12-lightbox-info');
 
+  // A site with a single album: no filter, and the download carries the album's name, not the site's.
+  const sole = manifest.albums.find((x) => x.title === 'A4/MILC');
+  const soleManifest = join(DOWNLOADS, 'single-album.json');
+  await writeFile(soleManifest, JSON.stringify({ ...manifest, albums: [sole], photos: manifest.photos.filter((p) => p.albumId === sole.id) }));
+  preview.kill();
+  await runNode([ASTRO, 'build', '--silent'], { PHOTOS_MANIFEST: soleManifest });
+  await cp(join(galleryDir, 'albums'), join(ROOT, 'dist', 'p'), { recursive: true });
+  // Restarted: preview caches the file list, and the rebuild renamed the hashed scripts.
+  preview = spawn(process.execPath, [ASTRO, 'preview', '--port', String(PREVIEW_PORT)], { cwd: ROOT, stdio: 'ignore' });
+  for (let i = 0; i < 60 && !(await fetch(site).then((r) => r.ok, () => false)); i++) await sleep(250);
+  await page.goto(site);
+  await page.waitFor(`document.querySelector('a.tile')`, 'photo tiles');
+  check('a single album shows no filter', await page.eval(`!document.getElementById('filter')`));
+  await page.eval(`document.getElementById('album-download').click()`);
+  await page.waitFor(`document.querySelector('.dl-panel.is-done')`, 'single-album ZIP saved', 30000);
+  const soleText = await page.eval(`document.querySelector('.dl-panel').textContent`);
+  check('a single album downloads under its own name', soleText.includes('Downloaded “A4/MILC”') && soleText.includes('Saved “A4-MILC.zip”'), soleText);
+  const soleFiles = await unzipList(await waitForFile(join(DOWNLOADS, 'A4-MILC.zip')), 'sole');
+  check('with its photos at the top level, not in a folder', soleFiles.length === sole.photoCount && soleFiles.every((f) => !f.path.includes('/')),
+    soleFiles.map((f) => f.path).join(', '));
+  await page.shot('13-single-album-download');
+
   check('no uncaught errors in the page', browser.errors.length === 0, browser.errors.join(' | '));
 } catch (e) {
   failures++;
