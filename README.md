@@ -235,7 +235,7 @@ git -C gallery reset --hard FETCH_HEAD
 | `start.cmd` / `start.command` | Double-click to launch on Windows / macOS; installs Node, git and deps if missing |
 | `config.json` | Title, budget, passcode hash, quality tiers |
 | `MANIFEST.md` | Data contract for `manifest.json` |
-| `studio/` | The local upload app — never deployed |
+| `studio/` | The local upload app — never deployed: `server.mjs` boots it, `routes/` holds the API by area, `lib/` the processing and git plumbing, `public/` the page (`app.js` wires up the modules in `public/js/`) |
 | `site/` | Astro static site; this is what ships |
 | `gallery/` | Photos + manifest, a worktree of the `gallery` branch |
 | `scripts/` | Setup (`bootstrap.*` install Node and git, `prepare.mjs` does the rest), the post-build collect step, and the tests |
