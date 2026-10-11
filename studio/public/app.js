@@ -1206,8 +1206,8 @@ $('tab-manage-btn').addEventListener('click', () => {
 // On a 61MP Sony HIF at 2560px: 291 KB and 390 KB per photo measured, ~525 KB estimated for max.
 const QUALITY_HINTS = {
   standard: 'Clean detail at a sensible size; right for most albums.',
-  high: 'About 34% larger than standard, with sturdier fine texture.',
-  max: 'About 80% larger than standard, holds up when zoomed in.',
+  high: 'About 33% larger than standard, with sturdier fine texture.',
+  max: 'About 75% larger than standard, holds up when zoomed in.',
 };
 
 function renderQualityHint() {

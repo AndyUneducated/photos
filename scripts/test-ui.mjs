@@ -253,6 +253,11 @@ try {
     return { sameRow: Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2) < 8, right: Math.round(innerWidth - b.right) };
   })()`);
   check('on a phone the button sits at the end of the title row', row.sameRow && row.right < 40, JSON.stringify(row));
+  const sharpness = await page.eval(`(() => {
+    const img = document.querySelector('a.tile img.is-loaded');
+    return { natural: img.naturalWidth, shown: Math.round(img.getBoundingClientRect().width * devicePixelRatio) };
+  })()`);
+  check('phone thumbnails have at least as many pixels as the screen shows', sharpness.natural >= sharpness.shown * 0.9, JSON.stringify(sharpness));
   await page.shot('10-phone-header');
   await browser.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 

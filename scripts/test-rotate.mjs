@@ -9,7 +9,7 @@
 import { processPhoto } from '../studio/lib/process.mjs';
 
 const file = process.argv[2] || 'samples/nokia_ski.heic';
-const base = { webMaxEdge: 2560, thumbMaxEdge: 640, webQuality: 66, thumbQuality: 55 };
+const base = { webMaxEdge: 2560, thumbMaxEdge: 1280, webQuality: 66, thumbQuality: 55 };
 
 const results = {};
 for (const degrees of [0, 90, 180, 270]) {

@@ -7,7 +7,7 @@
   "_concurrency": "Leave null to decide automatically from CPU and memory; set to 1 when memory is tight",
   "concurrency": null,
   "webMaxEdge": 2560,
-  "thumbMaxEdge": 640,
+  "thumbMaxEdge": 1280,
   "_quality": "Chosen per batch at upload time. The numbers are AVIF quality; see the Quality tiers table in README.md for measured sizes",
   "quality": {
     "standard": {

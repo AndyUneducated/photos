@@ -39,7 +39,7 @@ contract between the two halves of the project, so treat it as frozen unless `ve
       "web": "p/2026-09-19-shanghai-night/w/a1b2c3d4.avif",   // relative to site root
       "thumb": "p/2026-09-19-shanghai-night/t/a1b2c3d4.avif",
       "w": 2560, "h": 1707,                  // web-size pixel dimensions (post-rotation)
-      "tw": 640, "th": 427,                  // thumb pixel dimensions
+      "tw": 1280, "th": 853,                 // thumb pixel dimensions
       "lqip": "data:image/webp;base64,UklGR...",  // ~16px blur-up placeholder, inline
       "bytes": 412331,                       // web + thumb on disk
       "takenAt": "2026-09-19T20:14:03",      // camera local time, no timezone suffix

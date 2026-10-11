@@ -6,7 +6,7 @@
  *   - the ZIP writer's output unpacks with the system's own tool, CJK names included
  *   - download file names sort by shooting time and do not collide within an album
  *   - the backfill script adds EXIF to photos published before it existed, uploads the result,
- *     and does nothing the second time
+ *     and does nothing the second time; regen-thumbs does the same for undersized thumbnails
  *
  *   node scripts/test-download.mjs
  */
@@ -79,7 +79,7 @@ try {
   console.log('\nWhat processing puts in the web file');
   const source = join(WORK, 'camera.jpg');
   await writeFile(source, await syntheticPhoto(4242, { width: 1200, height: 800 }));
-  const processed = await processPhoto(source, { webMaxEdge: 2560, thumbMaxEdge: 640, webQuality: 66, thumbQuality: 55 });
+  const processed = await processPhoto(source, { webMaxEdge: 2560, thumbMaxEdge: 1280, webQuality: 66, thumbQuality: 55 });
   const webTags = await exifr.parse(processed.web.data, { tiff: true, exif: true, gps: true, reviveValues: false });
   check('the source really had GPS', Boolean(processed.gps));
   check('web file carries the shooting time', webTags?.DateTimeOriginal === syntheticTakenAt(4242).replace(/-/g, ':').replace('T', ' '), JSON.stringify(webTags));
@@ -181,6 +181,55 @@ try {
 
   const second = await node(['scripts/backfill-exif.mjs'], a.dir, { PORT: '4495' });
   check('running it again changes nothing', second.code === 0 && second.output.includes('Nothing to do') && (await sandbox.remoteTree()) === (await a.tree()), second.output);
+
+  // ------------------------------------------------------------ thumbnails
+  console.log('\nRebuilding thumbnails published at the old 640px size');
+  const oldManifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  for (const photo of oldManifest.photos) {
+    const dir = join(galleryDir, 'albums', photo.albumId);
+    const thumbFile = join(dir, 't', `${photo.id}.avif`);
+    const before = (await readFile(thumbFile)).length;
+    const { data, info } = await sharp(await readFile(join(dir, 'w', `${photo.id}.avif`)))
+      .resize({ width: 640, height: 640, fit: 'inside' }).raw().toBuffer({ resolveWithObject: true });
+    const small = await sharp(data, { raw: info }).avif({ quality: 55 }).toBuffer();
+    await writeFile(thumbFile, small);
+    photo.tw = info.width;
+    photo.th = info.height;
+    const delta = small.length - before;
+    photo.bytes += delta;
+    oldManifest.albums.find((x) => x.id === photo.albumId).bytes += delta;
+    oldManifest.usedBytes += delta;
+  }
+  await writeFile(manifestPath, `${JSON.stringify(oldManifest, null, 2)}\n`);
+  await git(['add', '-A'], galleryDir);
+  await git(['-c', 'user.name=test', '-c', 'user.email=test@localhost', 'commit', '--quiet', '-m', 'old thumbnails'], galleryDir);
+  await a.start();
+  const syncThumbs = await a.runOp('/api/sync');
+  await a.stop();
+  check('the 640px thumbnails are on GitHub', syncThumbs.state === 'done' && (await sandbox.remoteTree()) === (await a.tree()), syncThumbs.error?.error);
+
+  const regen = await node(['scripts/regen-thumbs.mjs'], a.dir, { PORT: '4495' });
+  check('regen-thumbs succeeds', regen.code === 0 && regen.output.includes('2 photos updated and uploaded'), regen.output);
+  const regenerated = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const thumbsRight = await Promise.all(regenerated.photos.map(async (p) => {
+    const dir = join(galleryDir, 'albums', p.albumId);
+    const thumb = await readFile(join(dir, 't', `${p.id}.avif`));
+    const meta = await sharp(thumb).metadata();
+    const web = (await readFile(join(dir, 'w', `${p.id}.avif`))).length;
+    return {
+      size: Math.max(meta.width, meta.height) === Math.min(1280, Math.max(p.w, p.h)),
+      manifest: meta.width === p.tw && meta.height === p.th && web + thumb.length === p.bytes,
+      bare: !meta.exif,
+      shape: Math.abs(p.tw / p.th - p.w / p.h) < 0.01,
+    };
+  }));
+  check('every thumbnail is now 1280px on its long edge', thumbsRight.every((t) => t.size), JSON.stringify(thumbsRight));
+  check('keeps the photo’s proportions', thumbsRight.every((t) => t.shape));
+  check('the manifest records the new sizes and bytes', thumbsRight.every((t) => t.manifest));
+  check('thumbnails carry no EXIF', thumbsRight.every((t) => t.bare));
+  check('GitHub has the rebuilt thumbnails', (await sandbox.remoteTree()) === (await a.tree()) && !(await a.dirty()));
+  const regenAgain = await node(['scripts/regen-thumbs.mjs'], a.dir, { PORT: '4495' });
+  check('running it again changes nothing', regenAgain.code === 0 && regenAgain.output.includes('Nothing to do'), regenAgain.output);
 } catch (e) {
   failures++;
   console.log(`\nThe test threw an exception: ${e.stack}`);

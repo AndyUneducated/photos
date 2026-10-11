@@ -19,7 +19,7 @@ const OUT_DIR = 'samples/out';
 
 const OPTS = {
   webMaxEdge: 2560,
-  thumbMaxEdge: 640,
+  thumbMaxEdge: 1280,
   webQuality: 66,
   thumbQuality: 55,
 };

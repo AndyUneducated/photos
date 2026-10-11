@@ -47,7 +47,7 @@ flowchart TD
     C --> D["convert to sRGB"]
     D --> E["sharp"]
     E --> F["web 2560px AVIF"]
-    E --> G["thumb 640px AVIF"]
+    E --> G["thumb 1280px AVIF"]
     E --> H["12px blur placeholder"]
     A --> I["EXIF + GPS"]
     I --> J["manifest.json"]
@@ -100,17 +100,20 @@ Pages ceiling is 1 GB — **exceeding it makes deployment fail**, so delete old 
 ### Quality tiers
 
 Chosen per batch, because encoding happens the moment you press process. Measured on one 61 MP
-Sony frame at 2560 px, total of web image plus thumbnail:
+Sony frame, total of the 2560 px web image plus the 1280 px thumbnail:
 
 | Tier | AVIF quality | Per photo | vs standard | Photos in 800 MB |
 | --- | --- | --- | --- | --- |
-| Standard | 66 / 55 | 291 KB | — | ~2,800 |
-| High | 75 / 60 | 390 KB | +34% | ~2,100 |
-| Max | 84 / 66 | ~525 KB | ~+80% | ~1,550 |
+| Standard | 66 / 55 | 332 KB | — | ~2,450 |
+| High | 75 / 60 | 441 KB | +33% | ~1,850 |
+| Max | 84 / 66 | 583 KB | +76% | ~1,400 |
 
 Those counts come from a single night shot, which compresses better than a detailed daylight
-scene — treat them as an upper bound rather than a promise. The max figure is extrapolated from
-the 75 → 84 step on a synthetic frame rather than measured on the Sony sample.
+scene — treat them as an upper bound rather than a promise.
+
+Thumbnails are 1280 px so a phone's single column (about 1100 device pixels wide on an iPhone)
+stays sharp. Thumbnails published at an older, smaller size are rebuilt from the web image by
+`node scripts/regen-thumbs.mjs` (close the studio first).
 
 The tier is recorded alongside the staged file, so re-encoding one photo with the rotate button
 does not silently drop it back to standard.
